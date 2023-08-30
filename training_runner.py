@@ -24,6 +24,7 @@ import analysis.utils.math as math
 from runner_util import utils, train_config, make_split_file
 from analysis.utils.binning import get_binning
 from compare_outputs import compare_outputs
+from sklearn.metrics import roc_curve
 
 from torchmetrics import AUROC, ROC
 
@@ -90,6 +91,8 @@ def training_runner(rank, settings, kernel_size, stride):
     engine.configure_optimizers(settings)
     settings.save_options(settings.outputPath, 'training_settings')
     engine.train(settings)
+   
+
 
 def init_training():
     """Reads util_config.ini, constructs command to run 1 training
@@ -104,12 +107,17 @@ def init_training():
     lr_decay = check_list_and_convert(settings.lr_decay)
     weightDecay = check_list_and_convert(settings.weightDecay)
     perm_output_path = settings.outputPath
-    variable_list = ['indicesFile', 'learningRate', 'weightDecay', 'learningRateDecay', 'featureExtractor']
-    for x in itertools.product(indicesFile, lr, weightDecay, lr_decay, featureExtractor):
+    stride = check_list_and_convert(settings.stride)
+    kernelSize = check_list_and_convert(settings.kernel)
+    variable_list = ['indicesFile', 'learningRate', 'weightDecay', 'learningRateDecay', 'featureExtractor', 'stride', 'kernelSize']
+    #variable_list = ['indicesFile', 'learningRate', 'weightDecay', 'learningRateDecay', 'featureExtractor', 'kernelSize']
+    for x in itertools.product(indicesFile, lr, weightDecay, lr_decay, featureExtractor, stride, kernelSize):
+    #for x in itertools.product(indicesFile, lr, weightDecay, lr_decay, featureExtractor, kernelSize):
         default_call = ["python", "WatChMaL/main.py", "--config-name=t2k_resnet_train"] 
         now = datetime.now()
         dt_string = now.strftime("%d%m%Y-%H%M%S")
         settings.outputPath = perm_output_path+'/'+dt_string+'/'
+        #settings.outputPath = '/fast_scratch/ipress/emu/wcsim/comparison/31072023-112835/'
         print(f'TRAINING WITH\n indices file: {x[0]}\n learning rate: {x[1]}\n learning rate decay: {x[3]}\n weight decay: {x[2]}\n feature extractor: {x[4]}\n output path: {settings.outputPath}')
         default_call.append("data.split_path="+x[0])
         default_call.append("tasks.train.optimizers.lr="+str(x[1]))
@@ -118,6 +126,8 @@ def init_training():
         default_call.append("model.feature_extractor._target_="+str(x[4]))
         default_call.append("hydra.run.dir=" +str(settings.outputPath))
         default_call.append("dump_path=" +str(settings.outputPath))
+        default_call.append("model.feature_extractor.stride="+str(x[5]))
+        default_call.append("model.feature_extractor.kernelSize="+str(x[6]))
         print(default_call)
         subprocess.call(default_call)
         end_training(settings, variable_list, x)
@@ -193,7 +203,7 @@ if args.doQuickPlots:
     efficiency_plots(settings, arch_name, newest_directory, plot_output)
     
     
-    '''
+    
     # plot training progression of training displaying the loss and accuracy throughout training and validation
     fig,ax1,ax2 = run.plot_training_progression()
     fig.tight_layout(pad=2.0) 
@@ -206,4 +216,4 @@ if args.doQuickPlots:
     plot_tuple = plot_roc(fpr,tpr,thr,'Electron', 'Muon', fig_list=[0,1,2], plot_label=arch_name)
     for i, plot in enumerate(plot_tuple):
         plot.savefig(plot_output + 'roc' + str(i) + '.png', format='png')
-    '''
+    

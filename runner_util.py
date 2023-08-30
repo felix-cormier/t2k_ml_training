@@ -23,7 +23,7 @@ def calc_dwall_cut(file,cut):
     temp_y = h5py.File(file,mode='r')['positions'][:,0,1]
     temp_r = np.sqrt(np.add(np.square(np.array(temp_x)), np.square(np.array(temp_y))))
     temp_z = np.abs(np.array(h5py.File(file,mode='r')['positions'][:,0,2]))
-    return np.logical_and(temp_r < (1690-cut), temp_z < (1850-cut))
+    return np.logical_and(temp_r < (1690-cut), temp_z < (1810-cut))
 
 
 def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/', seed=0, nfolds=3):
@@ -50,7 +50,8 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
     dwall_cut = calc_dwall_cut(h5_file, dwall_cut_value)
     print(f'WARNING: Removing veto events')
     print(f'WARNING: Removing range=-999 events')
-    indices_to_keep = np.array(range(len(dwall_cut)))[np.logical_and(np.logical_and(dwall_cut, ~h5py.File(h5_file,mode='r')['veto'][:]), np.ravel(h5py.File(h5_file,mode='r')['primary_charged_range']) != -999)]
+    indices_to_keep = np.array(range(len(dwall_cut)))[np.logical_and(dwall_cut, ~h5py.File(h5_file,mode='r')['veto'][:])]
+    #indices_to_keep = np.array(range(len(dwall_cut)))[np.logical_and(np.logical_and(dwall_cut, ~h5py.File(h5_file,mode='r')['veto'][:]), np.ravel(h5py.File(h5_file,mode='r')['primary_charged_range']) != -999)]
     #indices_to_keep = np.array(range(len(dwall_cut)))[np.logical_and(dwall_cut, ~h5py.File(h5_file,mode='r')['veto'][:])]
     print(f'indices to keep: {len(indices_to_keep)}')
     #Based on root files, divide indices into train/val/test
@@ -80,9 +81,9 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
 
         test_indices = test_indices[np.isin(test_indices, indices_to_keep)]
         val_indices = val_indices[np.isin(val_indices, indices_to_keep)]
-        print(np.unique(labels[train_indices],return_counts=True))
-        print(np.unique(labels[val_indices],return_counts=True))
-        print(np.unique(labels[test_indices],return_counts=True))
+        #print(np.unique(labels[train_indices],return_counts=True))
+        #print(np.unique(labels[val_indices],return_counts=True))
+        #print(np.unique(labels[test_indices],return_counts=True))
 
         np.savez(output_path + 'train'+str(train_val_test_split[0])+'_val'+str(train_val_test_split[1])+'_test'+str(1-train_val_test_split[0]-train_val_test_split[1])+'.npz',
                     test_idxs=test_indices, val_idxs=val_indices, train_idxs=train_indices)
@@ -109,13 +110,16 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
 
 
             print(f"Fold {i}")
-            print(np.unique(labels[train_indices],return_counts=True))
-            print(np.unique(labels[val_indices],return_counts=True))
-            print(np.unique(labels[test_indices],return_counts=True))
+            #print(np.unique(labels[train_indices],return_counts=True))
+            #print(np.unique(labels[val_indices],return_counts=True))
+            #print(np.unique(labels[test_indices],return_counts=True))
             print(output_path)
             np.savez(output_path + 'train_val_test_nFolds'+str(nfolds)+'_fold'+str(i)+'.npz',
                     test_idxs=test_indices, val_idxs=val_indices, train_idxs=train_indices)
-
+        
+    print(np.unique(labels[train_indices],return_counts=True))
+    print(np.unique(labels[val_indices],return_counts=True))
+    print(np.unique(labels[test_indices],return_counts=True))
 
 class train_config():
     def __init__(self,epochs, report_interval, val_interval, num_val_batches, checkpointing, save_interval) -> None:
@@ -194,9 +198,17 @@ class utils():
             elif 'Epochs'.lower() in key.lower():
                 self.epochs = config[arch].getint(key)
             elif 'KernelSize'.lower() in key.lower():
-                self.kernel = config[arch].getint(key)
+                if ',' in config[arch][key]:
+                    self.kernel = self.getListOfInput(config[arch][key], int)
+                    self.list_for_sweep.append(self.kernel)
+                else:
+                    self.kernel = config[arch][key]
             elif 'Stride'.lower() in key.lower():
-                self.stride = config[arch].getint(key)
+                if ',' in config[arch][key]:
+                    self.stride = self.getListOfInput(config[arch][key], int)
+                    self.list_for_sweep.append(self.stride)
+                else:
+                    self.stride = config[arch][key]
             elif 'ReportInterval'.lower() in key.lower():
                 self.reportInterval = config[arch].getint(key)
             elif 'ValInterval'.lower() in key.lower():
