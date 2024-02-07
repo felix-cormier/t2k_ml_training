@@ -1,7 +1,5 @@
 import numpy as np
-
 import os
-
 import h5py
 
 from analysis.classification import WatChMaLClassification
@@ -10,9 +8,19 @@ from analysis.utils.plotting import plot_legend
 from analysis.utils.binning import get_binning
 from analysis.utils.fitqun import read_fitqun_file, make_fitqunlike_discr, get_rootfile_eventid_hash, plot_fitqun_comparison
 import analysis.utils.math as math
+import WatChMaL.analysis.utils.fitqun as fq
 
 import matplotlib
 from matplotlib import pyplot as plt
+
+import torch
+import torch.onnx
+from WatChMaL.watchmal.model.resnet import resnet101
+
+from corner import corner
+from scipy.optimize import curve_fit
+
+dummy_path = '/fast_scratch_2/aferreira/t2k/ml/data/oct20_combine_flatE/nov29_normed_regression_shared/20092023-101855/'
 
 def get_cherenkov_threshold(label):
     threshold_dict = {0: 160., 1:0.8, 2:211.715}
@@ -195,3 +203,282 @@ def efficiency_plots(inputPath, arch_name, newest_directory, plot_output, label=
     return run_result[0]
 
 
+def network_diagram():
+    '''
+    code to produce onnx file of model network architecture that can then
+    be uploaded to https://netron.app/ in order to get network diagram
+    
+    the default input size is likey wrong since plot doesn't look quite right
+
+    currently just generates this for resnet 101 but should work with all models
+
+    can be run locally, does not require significant compute
+    '''
+    torch_model = resnet101(num_input_channels=2, num_output_channels=2)
+    # input size outputted from first forward pass of resnet
+    # (but with batch size of 256 instead of 1)
+    torch_input = torch.randn(1, 2, 198, 150) 
+    torch.onnx.export(torch_model, torch_input, 'resnet.onnx', opset_version=11)
+
+def un_normalize(data, x_bounds=(-1600,1600), y_bounds=(-1600,1600), z_bounds=(-1600,1600)):
+    '''
+    putting normalized data for x,y,z values from regression model back into natural units
+    '''
+    bounds = [x_bounds, y_bounds, z_bounds]
+    for i in range(3):
+        data[i] = (data[i])*bounds[i][1]
+        
+    return data
+
+def gaussian(x, a, mean, sigma):
+    return a * np.exp(-((x - mean)**2 / (2 * sigma**2)))
+
+def regression_analysis(from_path=True, dirpath=dummy_path, combine=True, true_positions=None, pred_positions=None):
+    '''
+    saves 2 plots for each of the 3 axes (x,y,z):
+    1) scatter plot of predicted vs true position
+    2) histogram of redsiduals with guassian fit
+
+    if combine = True this is done for both classes in the same
+    plot but if combine = False there is a set of plots for each class
+
+    residuals corner plot is only outputted when combine = True
+
+    uncertainties are likely calculated wrong
+
+    this is meant to be called in a notebook. if you would like to call it
+    in the command line you likely wanna change plt.show() to save figure instead
+
+    the default is to read from specified file path but you can also set from_path 
+    to False and pass the specific true and predicted position arrays directly
+    '''
+    plt.style.use('ggplot')
+
+    if from_path: 
+        # read in true positions and model predicted positions
+        true_positions = np.load(dirpath + "true_positions.npy")
+        pred_positions = np.load(dirpath + "pred_positions.npy")
+
+
+        # put data into natural units
+        tp, pp = [], []
+        for p, t in zip(pred_positions, true_positions):
+            tp.append(un_normalize(t))
+            pp.append(un_normalize(p))
+        true_positions = np.array(tp)
+        pred_positions = np.array(pp)
+
+        # read in true class and model predicted class
+        true_class = np.load(dirpath + "true_class.npy")
+        pred_class = np.load(dirpath + "pred_class.npy")
+
+    # just defining some basics
+    vertex_axis = ['X', 'Y', 'Z']
+    line = np.linspace(-1600, 1600, 10000) 
+    residual_lst, residual_lst_wcut = [], []
+
+    # loop over X, then Y, then Z and show in different colours
+    for i in range(len(vertex_axis)): 
+        color = plt.rcParams["axes.prop_cycle"].by_key()["color"][i]
+
+        if not combine: 
+            labels = "muon", "electron"
+
+            true_pos = {}
+            pred_pos = {}
+
+            true_pos['0'] = true_positions[true_class==0]
+            true_pos['1'] = true_positions[true_class==1]
+            pred_pos['0'] = pred_positions[true_class==0]
+            pred_pos['1'] = pred_positions[true_class==1]
+
+            pred_mis_id = {}
+            pred_cor_id = {}
+            true_mis_id = {}
+            true_cor_id = {}
+
+            pred_mis_id['0'] = pred_pos['0'][np.around(pred_class[true_class==0],0) != 0] 
+            pred_cor_id['0'] = pred_pos['0'][np.around(pred_class[true_class==0],0) == 0]
+            pred_mis_id['1'] = pred_pos['1'][np.around(pred_class[true_class==1],0) != 1]
+            pred_cor_id['1'] = pred_pos['1'][np.around(pred_class[true_class==1],0) == 1]
+            true_mis_id['0'] = true_pos['0'][np.around(pred_class[true_class==0],0) != 0] 
+            true_cor_id['0'] = true_pos['0'][np.around(pred_class[true_class==0],0) == 0]
+            true_mis_id['1'] = true_pos['1'][np.around(pred_class[true_class==1],0) != 1]
+            true_cor_id['1'] = true_pos['1'][np.around(pred_class[true_class==1],0) == 1]
+
+            for j in range(len(labels)):
+
+                plt.figure(figsize=(5,5))
+                plt.scatter(true_pos[str(j)][:,i], pred_pos[str(j)][:,i], alpha=0.05, s=0.1, color=color, label='correct classification')
+                plt.scatter(true_mis_id[str(j)][:,i], pred_mis_id[str(j)][:,i], alpha=0.2, s=0.1, color='black', label='incorrect classification')
+                plt.plot(line, line, '--', color='black', alpha=0.5)
+
+                plt.xlim(-2000,2000) 
+                plt.ylim(-2000,2000)
+                
+                plt.title(f'Event Vertex for {vertex_axis[i]} Axis - {labels[j]}')
+                plt.xlabel('True Position [cm]')
+                plt.ylabel('Predicted Position [cm]')
+                plt.legend()
+                plt.show()
+
+                # calculate residuals 
+                residuals = true_pos[str(j)][:,i] - pred_pos[str(j)][:,i] 
+
+                # create cut that we are interested in this value +/- from 0
+                cut = 1600
+                residuals_cut = []
+                for r in range(len(residuals)):
+                    if -cut < residuals[r] <  cut:
+                        residuals_cut.append(residuals[r])
+
+                yhist, xhist, _ = plt.hist(residuals_cut, bins=100, alpha=0.7, color=color)
+                popt, pcov = curve_fit(gaussian, (xhist[1:]+xhist[:-1])/2, yhist, bounds=(-np.inf, np.inf), p0=[40, 0, 70])    
+                perr = np.sqrt(np.diag(pcov))
+                plt.plot(line, gaussian(line, *popt), alpha=1, color='black', label='guassian fit')
+
+                # round numbers
+                mu = round(popt[1], 2)
+                mu_uncert = round(perr[1], 2)
+                std = round(popt[2], 2)
+                std_uncert = round(perr[2], 2)
+
+                plt.text(0.08, 0.82, '$\mu$ = {} $\pm$ {} [cm] \n\n$\sigma$ = {} $\pm$ {} [cm]'.format(mu, mu_uncert, std, std_uncert), fontsize=10, transform = plt.gca().transAxes, bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=1'))
+
+                plt.xlim(-cut, cut)
+
+                plt.title(f'Event Vertex for {vertex_axis[i]} Axis - {labels[j]} (correct and incorrect predicted class)')
+                plt.xlabel('true - predicted [cm]')
+                plt.ylabel('count')
+                plt.show()
+
+        else:
+
+            plt.figure(figsize=(5,5))
+            plt.scatter(true_positions[:,i], pred_positions[:,i], alpha=0.05, s=0.1, color=color)
+            plt.plot(line, line, '--', color='black', alpha=0.5)
+
+            plt.xlim(-2000,2000) 
+            plt.ylim(-2000,2000)
+            
+            plt.title(f'Event Vertex for {vertex_axis[i]} Axis')
+            plt.xlabel('True Position [cm]')
+            plt.ylabel('Predicted Position [cm]')
+            plt.show()
+
+            residuals = true_positions[:,i] - pred_positions[:,i] 
+            cut = 1600
+            residuals_cut = [] 
+            for r in range(len(residuals)):
+                if -cut < residuals[r] <  cut:
+                    residuals_cut.append(residuals[r])
+
+            yhist, xhist, _ = plt.hist(residuals_cut, bins=100, alpha=0.7, color=color)
+            popt, pcov = curve_fit(gaussian, (xhist[1:]+xhist[:-1])/2, yhist, bounds=(-np.inf, np.inf), p0=[40, 0, 70])    
+            perr = np.sqrt(np.diag(pcov))
+
+            plt.plot(line, gaussian(line, *popt), alpha=1, color='black', label='guassian fit')
+
+            # round numbers
+            mu = round(popt[1], 2)
+            mu_uncert = round(perr[1], 2)
+            std = round(popt[2], 2)
+            std_uncert = round(perr[2], 2)
+
+            plt.text(0.08, 0.82, '$\mu$ = {} $\pm$ {} [cm] \n\n$\sigma$ = {} $\pm$ {} [cm]'.format(mu, mu_uncert, std, std_uncert), fontsize=10, transform = plt.gca().transAxes, bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=1'))
+
+            plt.xlim(-cut, cut)
+
+            plt.title(f'Event Vertex for {vertex_axis[i]} Axis')
+            plt.xlabel('true - predicted [cm]')
+            plt.ylabel('count')
+            plt.show()
+
+            residual_lst.append(residuals)
+            residual_lst_wcut.append(residuals_cut)
+
+    if combine:
+        residuals = np.array(residual_lst)
+        figure = corner(residuals.T, bins=50,  labels=['X', 'Y', 'Z'], range=[(-cut,cut), (-cut,cut), (-cut,cut)]) 
+        plt.show()
+
+
+def fitqun_regression_results(hy_path = '/fast_scratch_2/aferreira/t2k/ml/data/oct20_combine_flatE/', 
+                              npy_path = '/fast_scratch_2/aferreira/t2k/ml/data/oct20_combine_flatE/nov29_normed_regression_shared/20092023-101855/'):
+    '''
+    Plot fiTQun specific regression results using un_normalize(), regression_analysis(), and read_fitqun_file().
+
+    Args:
+        hy_path (str, optional): directory where fitqun_combine.hy and combine_combine.hy files are located. 
+        true_path (str, optional): directory where true_positions.npy file is located.
+
+    Returns:
+        None
+    '''
+    # get values out of fitqun file, where mu_1rpos and e_1rpos are the positions of muons and electrons respectively
+    (_, labels, _, fitqun_hash), (mu_1rpos, e_1rpos) = fq.read_fitqun_file(hy_path+'fitqun_combine.hy', regression=True)
+
+    print('original mu_1rpos.shape =', mu_1rpos.shape)
+    print('original e_1rpos.shape =', e_1rpos.shape)
+    # read in the indices file
+    idx = np.array(sorted(np.load(npy_path + "/indices.npy")))
+
+    # read in the main HDF5 file that has the rootfiles and event_ids
+    hy = h5py.File(hy_path+'combine_combine.hy', "r")
+    positions = np.array(hy['positions'])[idx].squeeze()
+    rootfiles = np.array(hy['root_files'])[idx].squeeze()
+    event_ids = np.array(hy['event_ids'])[idx].squeeze()
+    ml_hash = fq.get_rootfile_eventid_hash(rootfiles, event_ids, fitqun=False)
+
+    print('LEN1 :', positions.shape)
+    print('LEN2 :', mu_1rpos.shape)
+
+    # load in the true positions 
+    true_positions = np.load(npy_path + "true_positions.npy")
+    print('true_positions.shape =', true_positions.shape)
+    
+    # unnormalize the true_positions
+    tp = []
+    for t in true_positions:
+        tp.append(un_normalize(t))
+    true_positions = np.array(tp)
+
+    print('true_positions =', true_positions)
+    print('mu_1rpos =', mu_1rpos)
+    print('e_1rpos =', e_1rpos)
+
+    # use intersect1d to find the intersection of fitqun_hash and ml_hash, specifically, intersect is a 
+    # sorted 1D array of common and unique elements, comm1 is the indices of the first occurrences of 
+    # the common values in fitqun_hash, comm2 is the indices of the first occurrences of the common values 
+    # in ml_hash. So we use comm1 to index fitqun_hash and comm2 to index ml_hash.
+    intersect, comm1, comm2 = np.intersect1d(fitqun_hash, ml_hash, assume_unique=True, return_indices=True)
+    print(f'intersect: {intersect}, comm1: {comm1}, comm2: {comm2}')
+    fitqun_labels = labels[comm1]
+    fitqun_mu_1rpos = mu_1rpos[comm1].squeeze() 
+    fitqun_e_1rpos = e_1rpos[comm1].squeeze() 
+    positions = positions[comm2]
+
+    true_0, pred_0 = [], []
+    true_1, pred_1 = [], []
+    for i in range(len(fitqun_labels)):
+        # LABEL 0 - muons  
+        if fitqun_labels[i] == 0:
+            true_0.append(positions[i])
+            pred_0.append(fitqun_mu_1rpos[i])
+
+        # LABEL 1 - electrons  
+        else:
+            true_1.append(positions[i])
+            pred_1.append(fitqun_e_1rpos[i])
+
+    # convert lists to arrayss
+    true_0 = np.array(true_0)
+    true_1 = np.array(true_1)
+    pred_0 = np.array(pred_0)
+    pred_1 = np.array(pred_1)
+
+    print('######## MUON EVENTS ########')
+    regression_analysis(from_path=False, true_positions=true_0, pred_positions=pred_0)
+
+    print('######## ELECTRON EVENTS ########')
+    regression_analysis(from_path=False, true_positions=true_1, pred_positions=pred_1)

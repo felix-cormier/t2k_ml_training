@@ -105,6 +105,36 @@ You can run the evaluation step on an already trained network with options
 
 The input directory has to have a trained network weights to load, in a .pth file. Output will then have all the numpy files output.
 
+### Adding Regession
+
+To run training and evaluation with regression (predicting the x, y, and z position of the neutrino event as well as the usual event classification) just add the following flag in addition to --doTraining or --doEvaluation
+
+```
+--doRegression
+```
+
+Once complete, you will then want to run plotting.regression_analysis(DIRNAME) where DIRNAME is the location where your checkpoints are stored.
+
+
+Note that by default, this will weigh the classification and regression losses equally, this is because in WatChMaL.watchmal.engine.engine_classifier.py, the following multiplicative factors are used for the classification and regression losses:
+
+```
+if self.regression:
+    mult_r = 1.0
+else:
+    mult_r = 0
+
+mult_c = 1.0
+
+self.loss = mult_c*self.loss_c + mult_r*self.loss_r	
+```
+
+To change this equal weighting between the classification and regression losses, for example to get a network that only focuses on optimizing the performance on the regression task, you need to change the classification multiplication factor
+
+```
+mult_c = 0.0            
+```  
+ 
 
 ### (OBSOLETE) Summarizing training
 
@@ -158,3 +188,6 @@ srun --mem-per-cpu=4G --nodes=1 --gpus-per-node=1 --ntasks-per-node=4 --time=8:0
 where the options are the same as before, but _gpus-per-node_ has been added; this particular one requests exactly one GPU.
 
 
+### Additional Resoureces
+
+Ashley Ferreira (Offboarding Document and Slides)[https://drive.google.com/drive/folders/1pb7OnIS1pF8SUVSqqXvf60lkWlUFJZvH?usp=sharing]
