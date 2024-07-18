@@ -234,7 +234,7 @@ class MultiRegressionAnalysis:
                 
                 ax.grid(True, linestyle='--', linewidth=0.5)
                 ax.legend()
-                fig.savefig(self.settings.outputPlotPath + f'{self.settings.target}_{var}_axis_{metric}_errorbars_.png')
+                fig.savefig(self.settings.outputPlotPath + f'{self.settings.target}_{var}_axis_{metric}_errorbars_multi_by_{percentify}.png')
                 # fig.clear()
 
         
@@ -288,6 +288,11 @@ class MultiRegressionAnalysis:
 
                 plt.errorbar(dfmean['dead PMT rate'], y=dfmean[metric]*percentify, yerr=dfsem[metric]*percentify, fmt='o', color = color_choices[i], capsize=5)
 
+                if metric == 'median':
+                    ax.set_ylabel(var + ' Bias ' + f' [{unit}]')
+                elif metric == 'quantile':
+                    ax.set_ylabel(var + ' Resolution ' + f' [{unit}]')
+
                 if self.settings.target in ['momentum', 'momenta', 'mom']:
                     title_str = f'{metric[0].capitalize() + metric[1:]} of (True - Pred) / True Momenta for {var} Axis'
                 else:
@@ -299,7 +304,9 @@ class MultiRegressionAnalysis:
                 if 'angle' in var.lower():
                     unit = 'deg'
 
-                ax.set_ylabel(metric[0].capitalize() + metric[1:] + f' [{unit}]')
+                
+
+                # ax.set_ylabel(metric[0].capitalize() + metric[1:] + f' [{unit}]')
                 ax.grid(True, linestyle='--', linewidth=0.5)
                 fig.savefig(self.settings.outputPlotPath + f'{self.settings.target}_mean_{var}_axis_{metric}.png')
 

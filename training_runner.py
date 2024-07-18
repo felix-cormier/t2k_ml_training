@@ -211,7 +211,7 @@ if args.doEvaluation:
     settings = utils()
     settings.outputPath = args.evaluationOutputDir
     settings.set_output_directory()
-    default_call = ["python", "WatChMaL/main.py", "--config-name=t2k_resnet_eval"] 
+    default_call = ["python", "WatChMaL/main.py", "--config-name=t2k_resnet_eval_dead_fixed"] 
     # default_call = ["python", "WatChMaL/main.py", "--config-name=t2k_resnet_eval_scale"] 
     # default_call = ["python", "WatChMaL/main.py", "--config-name=t2k_resnet_eval_classifier_dead"] 
     # default_call = ["python", "WatChMaL/main.py", "--config-name=t2k_resnet_eval_classifier_dead_scale"] 
@@ -337,11 +337,11 @@ if args.doMultiAnalyses:
         # print('doing multiple regression analysis here')
         mra = MultiRegressionAnalysis(settings, sub_dir_names, percents)
         # mra.plot_errorbars()
-        mra.plot_errorbars_multi_models(file_paths=
-            ['/data/thoriba/t2k/plots/muon_momenta_dropout_analysis_2/reg_analysis_metrics.csv',
-            '/data/thoriba/t2k/plots/resnet_jun26_muon_momenta_gt200Hits_timeO400S1000_2GeV_2M_DO0p1_1/09072024-101033/reg_analysis_metrics.csv',
-            '/data/thoriba/t2k/plots/muon_mom_jun26/reg_analysis_metrics_correct.csv'], unit='%',
-            labels=['5% Dropout', '10% Dropout', 'Without Dropout'])
+        # mra.plot_errorbars_multi_models(file_paths=
+        #     ['/data/thoriba/t2k/plots/muon_momenta_dropout_analysis_2/reg_analysis_metrics.csv',
+        #     '/data/thoriba/t2k/plots/resnet_jun26_muon_momenta_gt200Hits_timeO400S1000_2GeV_2M_DO0p1_1/09072024-101033/reg_analysis_metrics.csv',
+        #     '/data/thoriba/t2k/plots/muon_mom_jun26/reg_analysis_metrics_correct.csv'], unit='%',
+        #     labels=['5% Dropout', '10% Dropout', 'Without Dropout'])
 
 
 
@@ -354,11 +354,11 @@ if args.doMultiAnalyses:
         # mra.plot_resdiual_scatter('towall', 'Longitudinal')
         # mra.plot_resdiual_scatter('total_charge', 'Longitudinal')
         
-        # mra.plot_residual_residual_scatter(targets=['positions', 'momenta'], 
-        #                                    axes=['Longitudinal', 'Global'], 
-        #                                    ml_paths=['/data/thoriba/t2k/models/public/muon_pos_jun26/multiEval_seed_0_0th_itr_0_percent_20240702101048/',
-        #                                              '/data/thoriba/t2k/models/public/muon_mom_jun26/multiEval_seed_0_0th_itr_0_percent_20240628172323/']
-        #                                    )
+        mra.plot_residual_residual_scatter(targets=['positions', 'momenta'], 
+                                           axes=['Longitudinal', 'Global'], 
+                                           ml_paths=['/data/thoriba/t2k/models/public/muon_pos_jun26/multiEval_seed_0_0th_itr_0_percent_20240702101048/',
+                                                     '/data/thoriba/t2k/models/public/muon_mom_jun26/multiEval_seed_0_0th_itr_0_percent_20240628172323/']
+                                           )
         
         # # mra.plot_errorbars(file_path=settings.outputPlotPath + 'reg_analysis_metrics.csv')
         # mra.compute_bias_summary_stats()
@@ -625,8 +625,8 @@ if args.doMultiEvaluations:
 
     # TODO: provide dead pmt rate (float between 0 and 1) and iterations (integer)
     # dead_pmt_rates = [0.0, 0.03, .05, 0.10]
-    dead_pmt_rates = [0.0, 0.005, 0.01, 0.02]
-    iterations_per_rate = 8
+    dead_pmt_rates = [0.0, 0.010, 0.015, 0.020]
+    iterations_per_rate = 15
 
     print('Dead pmt rates (%)', np.array(dead_pmt_rates) * 100)
     print(f'for {iterations_per_rate} iterations per percent')

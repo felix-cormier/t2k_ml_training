@@ -172,6 +172,9 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
          vertex_axis.append('Longitudinal')      
          vertex_axis.append('Transverse')
          vertex_axis.append('TransverseAbsolute')
+         # same as above
+         vertex_axis.append('TransverseNorm')
+
      if "directions" in target:
          vertex_axis.append('Angle')
          vertex_axis.append('Longitudinal Angle')
@@ -217,20 +220,34 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
              temp_pred = longitudinal_component_pred
              true = np.hstack((true, np.reshape(temp_true, (true.shape[0], 1))))
              pred = np.hstack((pred, np.reshape(temp_pred, (pred.shape[0], 1))))
-         if 'Transverse' in vertex_axis[i] and "positions" in target:
+         if 'Transverse' == vertex_axis[i] and "positions" in target:
              total_magnitude_pred, _, transverse_component_pred = math.decompose_along_direction(pred[:,0:3], dir)
              total_magnitude_true, _, transverse_component_true = math.decompose_along_direction(true[:,0:3], dir)
              temp_true = transverse_component_true
              temp_pred = transverse_component_pred
              true = np.hstack((true, np.reshape(temp_true, (true.shape[0], 1))))
              pred = np.hstack((pred, np.reshape(temp_pred, (pred.shape[0], 1))))
-         if 'TransverseAbsolute' in vertex_axis[i] and "positions" in target:
+         if 'TransverseAbsolute' == vertex_axis[i] and "positions" in target:
              total_magnitude_pred, _, transverse_component_pred = math.decompose_along_direction(pred[:,0:3], dir)
              total_magnitude_true, _, transverse_component_true = math.decompose_along_direction(true[:,0:3], dir)
              temp_true = transverse_component_true
              temp_pred = transverse_component_pred
              true = np.hstack((true, np.reshape(temp_true, (true.shape[0], 1))))
              pred = np.hstack((pred, np.reshape(temp_pred, (pred.shape[0], 1))))
+             np.savetxt(f"{plot_path}/transabs.csv", np.sort(np.abs(temp_true - temp_pred)))
+             print('transabs', np.sort(np.abs(temp_true - temp_pred)))
+         if 'TransverseNorm' == vertex_axis[i] and "positions" in target:
+             total_magnitude_pred, longitudinal_component_pred, _ = math.decompose_along_direction(pred[:,0:3], dir)
+             total_magnitude_true, longitudinal_component_true, _ = math.decompose_along_direction(true[:,0:3], dir)
+             vector_transverse_pred = pred[:,0:3] - longitudinal_component_pred[:, None] * dir
+             vector_transverse_true = true[:,0:3] - longitudinal_component_true[:, None] * dir
+             residual_vector = vector_transverse_true - vector_transverse_pred
+             temp_true = np.linalg.norm(residual_vector, axis=-1)
+            #  temp_pred = np.linalg.norm(residual_vector, axis=-1)
+             true = np.hstack((true, np.reshape(temp_true, (true.shape[0], 1))))
+             pred = np.hstack((pred, np.reshape(temp_true, (pred.shape[0], 1))))
+             np.savetxt(f"{plot_path}/transabsangle.csv", np.sort(temp_true))
+             print('transabsnormlast', np.sort(temp_true))
 
          if "Angle" in vertex_axis[i]:
              unit_vector_pred = np.transpose(np.array([np.divide(pred[:,0],np.linalg.norm(pred[:,0:3], axis=1)), np.divide(pred[:,1],np.linalg.norm(pred[:,0:3], axis=1)), np.divide(pred[:,2],np.linalg.norm(pred[:,0:3], axis=1))]) )
@@ -353,8 +370,10 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
                 residuals = (true - pred)/true
              elif "Global" in vertex_axis[i] and "positions" in target:
                 residuals = true[:,i]
-             elif "TransverseAbsolute" in vertex_axis[i] and "positions" in target:
+             elif "TransverseAbsolute" == vertex_axis[i] and "positions" in target:
                 residuals = np.abs(true[:,i] - pred[:,i])
+             elif "TransverseNorm" == vertex_axis[i] and "positions" in target:
+                residuals = true[:,i]
              else:
                 residuals = true[:,i] - pred[:,i] 
              cut = 500

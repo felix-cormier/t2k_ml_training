@@ -22,21 +22,23 @@ sys.path.append('/home/thoriba/t2k2/t2k_ml_training/WatChMaL/')
 from cnn_dataset import CNNDataset, CNNDatasetDeadPMT, CNNDatasetScale
 
 # h5file = '/fast_scratch_2/fcormier/t2k/ml/data/oct20_combine_flatE/combine_combine.hy'
-# h5file = '/data/thoriba/t2k/datasets/apr3_eMuPiPlus_1500MeV_small_1/multi_combine.hy'
+h5file = '/data/thoriba/t2k/datasets/apr3_eMuPiPlus_1500MeV_small_1/multi_combine.hy'
+indices = '/data/thoriba/t2k/indices/apr3_eMuPiPlus_1500MeV_small_1/train_val_test_gt200Hits_FCTEST_nFolds10_fold0.npz'
 pmt_pos = '/data/thoriba/t2k/imagefile/skdetsim_imagefile.npy'
 
 # bigger dataset and indices taken from reg (elec_pos)
-h5file = '/fast_scratch_2/fcormier/t2k/ml/data/oct20_combine_flatE/combine_combine.hy'
-indices = '/fast_scratch_2/fcormier/t2k/ml/data/oct20_combine_flatE/train_val_test_nFolds3_fold0.npz'
+# h5file = '/fast_scratch_2/fcormier/t2k/ml/data/oct20_combine_flatE/combine_combine.hy'
+# indices = '/fast_scratch_2/fcormier/t2k/ml/data/oct20_combine_flatE/train_val_test_nFolds3_fold0.npz'
 
 
 # ['/home/thoriba/t2k2/t2k_ml_training/chain_scaler_1_quantile_normal.joblib', '/home/thoriba/t2k2/t2k_ml_training/chain_scaler_2_minmax.joblib']
 
 cs = {'fitted_scaler': None, # set None to fit a new scaler, if provided, only this and transform_per_batch will be used.
-      'scaler_type': 'minmax',
-      'sample_size': 10000,
+      'scaler_type': ['robust', 'quantile_normal'],  # must be a list; even if you have only one thing. 
+      'sample_size': 10000,  # sample size to fit the scaler
       'dataset_index_file': indices,
-      'transform_per_batch': False
+      'transform_per_batch': False,    # must be False now.
+      'scaler_output_path': '/data/thoriba/t2k/indices/testingCNN/' # where to save the file
       }
 cnn = CNNDatasetScale(h5file, pmt_pos, channel_scaler=cs)
 
