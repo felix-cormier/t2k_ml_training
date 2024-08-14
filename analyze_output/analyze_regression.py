@@ -111,6 +111,8 @@ def analyze_regression(settings):
         plot_reg_results(results.get_var_perf("ML", variable='towall', axis='Angle', value='bins'), results.get_var_perf("ML", variable='towall', axis='Angle', value='median'),
                         results.get_var_perf("ML", variable='towall', axis='Angle', value='median error'), results.get_var_perf("fitqun", variable='towall', axis='Angle', value='median'),
                         results.get_var_perf("fitqun", variable='towall', axis='Angle', value='median error'), "Towall [cm]", "Angle Bias [deg]", "towall_angle_ml_fq_median", settings)
+        
+        return
 
     if "momenta" in settings.target:
         print(f"Directions; ML; Global")
@@ -134,7 +136,8 @@ def analyze_regression(settings):
         plot_reg_results(results.get_var_perf("ML", variable='towall', axis='Global', value='bins'), 100*results.get_var_perf("ML", variable='towall', axis='Global', value='median'),
                         100*results.get_var_perf("ML", variable='towall', axis='Global', value='median error'), 100*results.get_var_perf("fitqun", variable='towall', axis='Global', value='median'),
                         100*results.get_var_perf("fitqun", variable='towall', axis='Global', value='median error'), "Towall [cm]", "Momentum Bias [%]", "towall_mom_ml_fq_median", settings)
-
+        return
+    
     if "positions" in settings.target:
         print(f"Positions; ML; Global")
         print(f"Resolution {results.get_global_perf('ML', axis='Global', value='quantile')} ({results.get_global_perf('ML', axis='Global', value='quantile error')})")
@@ -204,7 +207,21 @@ def analyze_regression(settings):
         plot_reg_results(results.get_var_perf("ML", variable='towall', axis='Longitudinal', value='bins'), results.get_var_perf("ML", variable='towall', axis='Longitudinal', value='median'),
                         results.get_var_perf("ML", variable='towall', axis='Longitudinal', value='median error'), results.get_var_perf("fitqun", variable='towall', axis='Longitudinal', value='median'),
                         results.get_var_perf("fitqun", variable='towall', axis='Longitudinal', value='median error'), "Towall [cm]", "Longitudinal Bias [cm]", "towall_longitudinal_pos_ml_fq_median", settings)
-
+        
+        plot_reg_results(results.get_var_perf("ML", variable='towall', axis='AbsTransvrs', value='bins'), results.get_var_perf("ML", variable='towall', axis='AbsTransvrs', value='median'),
+                        results.get_var_perf("ML", variable='towall', axis='AbsTransvrs', value='median error'), results.get_var_perf("fitqun", variable='towall', axis='AbsTransvrs', value='median'),
+                        results.get_var_perf("fitqun", variable='towall', axis='AbsTransvrs', value='median error'), "Towall [cm]", "Absolute Transverse Bias [cm]", "towall_AbsTransvrs_pos_ml_fq_median", settings)
+        
+        plot_reg_results(results.get_var_perf("ML", variable='towall', axis='AbsTransvrs', value='bins'), results.get_var_perf("ML", variable='towall', axis='AbsTransvrs', value='quantile'),
+                        results.get_var_perf("ML", variable='towall', axis='AbsTransvrs', value='quantile error'), results.get_var_perf("fitqun", variable='towall', axis='AbsTransvrs', value='quantile'),
+                        results.get_var_perf("fitqun", variable='towall', axis='AbsTransvrs', value='quantile error'), "Towall [cm]", "Absolute Transverse Resolution [cm]", "towall_AbsTransvrs_pos_ml_fq_quantile", settings)
+        
+        plot_reg_results(results.get_var_perf("ML", variable='towall', axis='TRVM', value='bins'), results.get_var_perf("ML", variable='towall', axis='TRVM', value='median'),
+                        results.get_var_perf("ML", variable='towall', axis='TRVM', value='median error'), results.get_var_perf("fitqun", variable='towall', axis='TRVM', value='median'),
+                        results.get_var_perf("fitqun", variable='towall', axis='TRVM', value='median error'), "Towall [cm]", "TRVM Bias [cm]", "towall_TRVM_pos_ml_fq_median", settings)
+        
+        
+        return
 
 def plot_reg_results(x, ml, ml_error, fitqun, fitqun_error, xlabel, ylabel, name, settings):
     plt.errorbar(x, ml, ml_error, label="ML", ls='none', marker='o')

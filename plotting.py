@@ -129,6 +129,24 @@ def regression_analysis_perVar(from_path=True, dirpath='outputs', combine=True, 
     return bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict
 
 
+def investigate_events(residuals, true, pred, axis_name, min_value, max_value, plot_path):
+    # print information about events that have large residuals
+    # print(f"Residuals for {axis_name} axis")
+    qualified_residual_index = []
+    for i in range(len(residuals)):
+        if residuals[i] > min_value and residuals[i] < max_value:
+            print(f"Event {i} has a residual of {residuals[i]}")
+            print(f"True: {true[i]}")
+            print(f"Pred: {pred[i]}")
+            qualified_residual_index.append(i)
+    
+    # qualified_residual_index = np.array(qualified_residual_index, dtype=int)
+    # np.savetxt(str(plot_path + '/qualified_residual_index_' + axis_name + ".csv"), qualified_residual_index, delimiter=",")
+    return qualified_residual_index
+    
+
+
+    
 
 
 def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=None, pred=None, dir=None, target = 'directions', extra_string = "", save_plots=False, plot_path='outputs/'):
@@ -171,9 +189,12 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
          vertex_axis.append('Global')
          vertex_axis.append('Longitudinal')      
          vertex_axis.append('Transverse')
-         vertex_axis.append('TransverseAbsolute')
+        #  vertex_axis.append('TransverseAbsolute')
          # same as above
-         vertex_axis.append('TransverseNorm')
+        #  vertex_axis.append('TransverseNorm')
+         vertex_axis.append('AbsTransvrs')
+         vertex_axis.append('TRVM')
+         vertex_axis.append('LRVM')
 
      if "directions" in target:
          vertex_axis.append('Angle')
@@ -220,34 +241,39 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
              temp_pred = longitudinal_component_pred
              true = np.hstack((true, np.reshape(temp_true, (true.shape[0], 1))))
              pred = np.hstack((pred, np.reshape(temp_pred, (pred.shape[0], 1))))
-         if 'Transverse' == vertex_axis[i] and "positions" in target:
+         if 'Transverse' in vertex_axis[i] and "positions" in target:
              total_magnitude_pred, _, transverse_component_pred = math.decompose_along_direction(pred[:,0:3], dir)
              total_magnitude_true, _, transverse_component_true = math.decompose_along_direction(true[:,0:3], dir)
              temp_true = transverse_component_true
              temp_pred = transverse_component_pred
              true = np.hstack((true, np.reshape(temp_true, (true.shape[0], 1))))
              pred = np.hstack((pred, np.reshape(temp_pred, (pred.shape[0], 1))))
-         if 'TransverseAbsolute' == vertex_axis[i] and "positions" in target:
+         if 'AbsTransvrs' == vertex_axis[i] and "positions" in target:
              total_magnitude_pred, _, transverse_component_pred = math.decompose_along_direction(pred[:,0:3], dir)
              total_magnitude_true, _, transverse_component_true = math.decompose_along_direction(true[:,0:3], dir)
              temp_true = transverse_component_true
              temp_pred = transverse_component_pred
              true = np.hstack((true, np.reshape(temp_true, (true.shape[0], 1))))
              pred = np.hstack((pred, np.reshape(temp_pred, (pred.shape[0], 1))))
-             np.savetxt(f"{plot_path}/transabs.csv", np.sort(np.abs(temp_true - temp_pred)))
-             print('transabs', np.sort(np.abs(temp_true - temp_pred)))
-         if 'TransverseNorm' == vertex_axis[i] and "positions" in target:
+            #  np.savetxt(f"{plot_path}/transabs.csv", np.sort(np.abs(temp_true - temp_pred)))
+            #  print('transabs', np.sort(np.abs(temp_true - temp_pred)))
+         if 'TRVM' == vertex_axis[i] and "positions" in target: # stands for transverse residual vector magnitude
              total_magnitude_pred, longitudinal_component_pred, _ = math.decompose_along_direction(pred[:,0:3], dir)
              total_magnitude_true, longitudinal_component_true, _ = math.decompose_along_direction(true[:,0:3], dir)
-             vector_transverse_pred = pred[:,0:3] - longitudinal_component_pred[:, None] * dir
-             vector_transverse_true = true[:,0:3] - longitudinal_component_true[:, None] * dir
-             residual_vector = vector_transverse_true - vector_transverse_pred
-             temp_true = np.linalg.norm(residual_vector, axis=-1)
-            #  temp_pred = np.linalg.norm(residual_vector, axis=-1)
-             true = np.hstack((true, np.reshape(temp_true, (true.shape[0], 1))))
-             pred = np.hstack((pred, np.reshape(temp_true, (pred.shape[0], 1))))
-             np.savetxt(f"{plot_path}/transabsangle.csv", np.sort(temp_true))
-             print('transabsnormlast', np.sort(temp_true))
+             v_t_pred = pred[:,0:3] - longitudinal_component_pred[:, None] * dir
+             v_t_true = true[:,0:3] - longitudinal_component_true[:, None] * dir
+            #  residual_vector = v_t_true - v_t_pred
+             norms = np.sqrt(np.square(v_t_true[:,0] - v_t_pred[:,0])+ np.square(v_t_true[:,1] - v_t_pred[:,1]) + np.square(v_t_true[:,2] - v_t_pred[:,2]))
+             true = np.hstack((true, np.reshape(norms, (true.shape[0], 1))))
+             pred = np.hstack((pred, np.zeros((pred.shape[0], 1))))
+         if 'LRVM' == vertex_axis[i] and "positions" in target: # stands for longitudinal residual vector magnitude
+            total_magnitude_pred, longitudinal_component_pred, _ = math.decompose_along_direction(pred[:,0:3], dir)
+            total_magnitude_true, longitudinal_component_true, _ = math.decompose_along_direction(true[:,0:3], dir)
+            v_l_pred = longitudinal_component_pred[:, None] * dir
+            v_l_true = longitudinal_component_true[:, None] * dir
+            norms = np.sqrt(np.square(v_l_true[:,0] - v_l_pred[:,0])+ np.square(v_l_true[:,1] - v_l_pred[:,1]) + np.square(v_l_true[:,2] - v_l_pred[:,2]))
+            true = np.hstack((true, np.reshape(norms, (true.shape[0], 1))))
+            pred = np.hstack((pred, np.zeros((pred.shape[0], 1))))
 
          if "Angle" in vertex_axis[i]:
              unit_vector_pred = np.transpose(np.array([np.divide(pred[:,0],np.linalg.norm(pred[:,0:3], axis=1)), np.divide(pred[:,1],np.linalg.norm(pred[:,0:3], axis=1)), np.divide(pred[:,2],np.linalg.norm(pred[:,0:3], axis=1))]) )
@@ -353,7 +379,6 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
                 else:
                     plt.xlim(-xlimit,xlimit) 
                     plt.ylim(-ylimit,ylimit)
-                
                 plt.title(f'Event Vertex for {vertex_axis[i]} Axis')
                 unit = '[cm]'
                 if "directions" in target:
@@ -368,14 +393,21 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
                 
              if len(vertex_axis) == 1:
                 residuals = (true - pred)/true
-             elif "Global" in vertex_axis[i] and "positions" in target:
+             elif ("Global" in vertex_axis[i] or "TRVM" in vertex_axis[i] or "LRVM" in vertex_axis[i]) and "positions" in target:
                 residuals = true[:,i]
-             elif "TransverseAbsolute" == vertex_axis[i] and "positions" in target:
+             elif "AbsTransvrs" == vertex_axis[i] and "positions" in target:
                 residuals = np.abs(true[:,i] - pred[:,i])
-             elif "TransverseNorm" == vertex_axis[i] and "positions" in target:
-                residuals = true[:,i]
+            #  elif "TRVM" == vertex_axis[i] and "positions" in target:
+            #     # print('TRVM with ', extra_string)
+            #     residuals = true[:,i]
              else:
                 residuals = true[:,i] - pred[:,i] 
+             
+             residual_index = []
+             if 'momenta' in target:
+                residual_index = 1
+                # residual_index = investigate_events(residuals, true, pred, vertex_axis[i], -1000, -2, plot_path)
+
              cut = 500
              if "momentum" in target or "energies" in target or "momenta" in target:
                  cut = 10
@@ -427,11 +459,11 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
                 # round numbers
                 
                 if "momenta" in target or "momentum" in target:
-                    plt.text(0.6, 0.7, '{} \n $\mu$ = {:.5f} $\pm${} {} \n Quant. = {:.5f} $\pm${} {}'.format(extra_string, round(numerical_median,dec_to_round), round_sig(median_error), unit, round(quantile, dec_to_round), round_sig(quantile_error), unit), fontsize=9, transform = plt.gca().transAxes, bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=1'))
+                    plt.text(0.1, 0.8, '{} \n $\mu$ = {:.5f} $\pm${} {} \n Quant. = {:.5f} $\pm${} {}'.format(extra_string, round(numerical_median,dec_to_round), round_sig(median_error), unit, round(quantile, dec_to_round), round_sig(quantile_error), unit), fontsize=7, transform = plt.gca().transAxes, bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=.5'))
                 else:
                     plt.text(0.6, 0.7, '{} \n $\mu$ = {:.2f} $\pm${} {} \n Quant. = {:.2f} $\pm${} {}'.format(extra_string, round(numerical_median,dec_to_round), round_sig(median_error), unit, round(quantile, dec_to_round), round_sig(quantile_error), unit), fontsize=9, transform = plt.gca().transAxes, bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=1'))
 
-                if "positions"in target and "Global" in vertex_axis[i]:
+                if ("positions"in target and "Global" in vertex_axis[i]) or ("positions" in target and "AbsTransvrs" in vertex_axis[i]) or ("positions" in target and "TRVM" in vertex_axis[i]):
                     plt.xlim(0,xlimit) 
                 elif "directions"in target and "Angle" in vertex_axis[i]:
                     plt.xlim(0,15) 
@@ -441,6 +473,8 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
                 plt.title(f'Event Vertex for {vertex_axis[i]} Axis')
                 if "energies" in target or "momentum" in target or "momenta" in target:
                     plt.xlabel('(true - predicted)/true ')
+                    plt.title(f'Momentum Fractional Residuals')
+                    plt.xlim(-2, 1)
                 else:
                     plt.xlabel('true - predicted ' + unit)
                 plt.ylabel('count')
@@ -461,6 +495,8 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
              median_error_lst.append(median_error)
              plt.clf()
 
+             
+
      if False and combine:
          residuals = np.array(residual_lst)
          labels = ['X', 'Y', 'Z']
@@ -471,10 +507,10 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
 
      plt.clf()
      
-     print('some debugging')
-     print('true', np.array(true).shape)
-     print('residuals', np.array(residuals).shape)
-     print('residuals cut', np.array(residuals_cut).shape)
+    #  print('some debugging')
+    #  print('true', np.array(true).shape)
+    #  print('residuals', np.array(residuals).shape)
+    #  print('residuals cut', np.array(residuals_cut).shape)
      
 
 

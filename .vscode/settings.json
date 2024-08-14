@@ -1,5 +1,6 @@
 {
     "python.analysis.extraPaths": [
-        "./WatChMaL/watchmal/dataset/cnn"
+        "./WatChMaL/watchmal/dataset/cnn",
+        "./WatChMaL"
     ]
 }

@@ -216,4 +216,3 @@ srun --mem-per-cpu=4G --nodes=1 --gpus-per-node=1 --ntasks-per-node=4 --time=8:0
 
 where the options are the same as before, but _gpus-per-node_ has been added; this particular one requests exactly one GPU.
 
-

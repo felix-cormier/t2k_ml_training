@@ -34,18 +34,18 @@ pmt_pos = '/data/thoriba/t2k/imagefile/skdetsim_imagefile.npy'
 # ['/home/thoriba/t2k2/t2k_ml_training/chain_scaler_1_quantile_normal.joblib', '/home/thoriba/t2k2/t2k_ml_training/chain_scaler_2_minmax.joblib']
 
 cs = {'fitted_scaler': None, # set None to fit a new scaler, if provided, only this and transform_per_batch will be used.
-      'scaler_type': ['robust', 'quantile_normal'],  # must be a list; even if you have only one thing. 
+      'scaler_type': ['quantile_normal', 'minmax'],  # must be a list; even if you have only one thing. 
       'sample_size': 10000,  # sample size to fit the scaler
       'dataset_index_file': indices,
-      'transform_per_batch': False,    # must be False now.
-      'scaler_output_path': '/data/thoriba/t2k/indices/testingCNN/' # where to save the file
+      'transform_per_batch': True,    # must be False now.
+      'scaler_output_path': '/data/thoriba/t2k/indices/testingCNN_2/' # where to save the file
       }
 cnn = CNNDatasetScale(h5file, pmt_pos, channel_scaler=cs)
 
 # gotten_item = cnn.__getitem__(100)
 
 for i in range(10):
-      cnn.__getitem__(i)
+      print(cnn.__getitem__(i)['data'][0])
 
 # print(gotten_item.keys())
 

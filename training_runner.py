@@ -144,6 +144,9 @@ def init_training():
         subprocess.call(default_call)
         # turned off for now (july 4)
         # end_training(settings, variable_list, x)
+    # default_call[2] = "--config-name=t2k_resnet_train_scale_norm.yaml"
+    # print(default_call)
+    # subprocess.call(default_call)
 
 
 def check_list_and_convert(input):
@@ -336,7 +339,7 @@ if args.doMultiAnalyses:
         # percents = [0]
         # print('doing multiple regression analysis here')
         mra = MultiRegressionAnalysis(settings, sub_dir_names, percents)
-        # mra.plot_errorbars()
+        mra.plot_errorbars()
         # mra.plot_errorbars_multi_models(file_paths=
         #     ['/data/thoriba/t2k/plots/muon_momenta_dropout_analysis_2/reg_analysis_metrics.csv',
         #     '/data/thoriba/t2k/plots/resnet_jun26_muon_momenta_gt200Hits_timeO400S1000_2GeV_2M_DO0p1_1/09072024-101033/reg_analysis_metrics.csv',
@@ -626,7 +629,7 @@ if args.doMultiEvaluations:
     # TODO: provide dead pmt rate (float between 0 and 1) and iterations (integer)
     # dead_pmt_rates = [0.0, 0.03, .05, 0.10]
     dead_pmt_rates = [0.0, 0.010, 0.015, 0.020]
-    iterations_per_rate = 15
+    iterations_per_rate = 8
 
     print('Dead pmt rates (%)', np.array(dead_pmt_rates) * 100)
     print(f'for {iterations_per_rate} iterations per percent')

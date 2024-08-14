@@ -62,6 +62,18 @@ def mom_to_range_dicts():
 
     return [(a_mu, b_mu, c_mu), (a_el, b_el, c_el)]
 
+# computes range for each particle from energy, for muons and electrons. Range is used for fully contained cut. Not implemented for pions.
+def range_from_energy(energies, labels):
+     momenta = mom_from_energies(energies, labels)
+     ranges = np.zeros(momenta.shape[0])
+     e_shower_depth = np.zeros(momenta.shape[0])
+     range_fit_params = mom_to_range_dicts()
+     ranges[labels==0] = lq(momenta[labels==0], range_fit_params[0][0], range_fit_params[0][1], range_fit_params[0][2])
+     ranges[labels==1] = lq(momenta[labels==1], range_fit_params[1][0], range_fit_params[1][1], range_fit_params[1][2])
+     e_shower_depth[(labels==1)] = electron_shower_depth(energies[labels==1])
+     ranges[labels==1] = np.maximum(ranges[labels==1], e_shower_depth[labels==1])
+     return ranges
+
 #For electron in water
 #Energy in MeV, returns shower depth in cm
 def electron_shower_depth(energy):
@@ -106,7 +118,7 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
     #indices_to_keep = np.array(range(len(dwall_cut)))[np.where(np.ravel(h5py.File(h5_file,mode='r')['labels'])==1)]
     indices_to_keep = np.array(range(len(dwall_cut)))
     #print(indices_to_keep)
-    fully_contained=True
+    fully_contained=False
     
     with h5py.File(h5_file, mode='r') as h5fw:
         # select indices only with 'keep_event' == True (if key exists), instead of keeping all events
@@ -546,6 +558,7 @@ class analysisUtils():
         """
         self.doRegression=False
         self.doClassifiaction=False
+        self.fullyContainedCut=False
         self.list_for_sweep = []
         for key in config[arch]:
             #use lower() to ignore any mistakes in capital letter in config file
@@ -601,6 +614,17 @@ class analysisUtils():
                     self.list_for_sweep.append(self.bkgLabels)
                 else:
                     self.bkgLabels = int(config[arch][key])
+            elif 'nhitsCut'.lower() in key.lower():
+                cut_value = float(config[arch][key])
+                self.nhitsCut = cut_value
+            elif 'towallCut'.lower() in key.lower():
+                cut_value = float(config[arch][key])
+                self.towallCut = cut_value
+            elif 'dwallCut'.lower() in key.lower():
+                cut_value = float(config[arch][key])
+                self.dwallCut = cut_value
+            elif 'fullyContainedCut'.lower() in key.lower():
+                self.fullyContainedCut = config[arch].getboolean(key)
             else:
                 print(f'Variable {key} not found, exiting')
                 return 0
