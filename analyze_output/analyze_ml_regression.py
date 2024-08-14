@@ -22,6 +22,40 @@ from runner_util import electron_shower_depth, lq, mom_from_energies, mom_to_ran
 def gaussian(x, a, mean, sigma):
      return a * np.exp(-((x - mean)**2 / (2 * sigma**2)))
 
+def export_mom_residuals(truth_0, pred_0, rootfiles, event_ids, directions, total_charge, visible_energy, towall, nhits, indices, settings):
+     fract_residuals = (truth_0 - pred_0) / truth_0
+     large_residuals_index = []
+     for i in range(len(fract_residuals)):
+          if fract_residuals[i] < - 1:
+               large_residuals_index.append(i)
+     print("index of large residuals after the cut", large_residuals_index)
+     large_residuals_idx_wrt_dataset = indices[large_residuals_index]
+     print("index of large residuals before the cut", large_residuals_idx_wrt_dataset)
+
+     file_path = '/data/thoriba/t2k/plots/muon_mom_fixed_dead_fully_cut/dead_with_mask/residual_check/residuals_info_idx2.csv'
+     data = []
+     for i, idx in enumerate(large_residuals_index):
+          data.append({
+               'event_index': large_residuals_idx_wrt_dataset[i],
+               'rootfile': rootfiles[idx],
+               'event_id': event_ids[idx],
+               'truth': truth_0[idx],
+               'pred': pred_0[idx],
+               'fractional_residual': fract_residuals[idx],
+               'direction': directions[idx],
+               'total_charge': total_charge[idx],
+               'visible_energy': visible_energy[idx],
+               'towall': towall[idx],
+               'nhits': nhits[idx]
+          })
+
+     # Write data to CSV file
+     with open(file_path, mode='w', newline='') as file:
+          writer = csv.DictWriter(file, fieldnames=data[0].keys())
+          writer.writeheader()
+          writer.writerows(data)
+
+
 #def analyze_ml_regression(input_path, target, ml_path, output_plot_path, label, fitqun_path=None):
 def analyze_ml_regression(settings):
 
@@ -61,50 +95,19 @@ def analyze_ml_regression(settings):
           towall_cut = settings.towallCut
           dwall_cut = settings.dwallCut
 
-          # apply fully contained cut
           ranges = range_from_energy(energies, labels)
 
-          #Apply cuts
+          #Apply cuts (1 / 3)   
           variables = [event_ids, rootfiles, preds, truth, labels, energies, directions, total_charge, towall, nhits, indices, dwalls, ranges]
           variables = [var[(nhits> nhits_cut)] for var in variables]
           event_ids, rootfiles, preds, truth, labels, energies, directions, total_charge, towall, nhits, indices, dwalls, ranges = variables
-          # event_ids = event_ids[(nhits> nhits_cut)]
-          # rootfiles = rootfiles[(nhits> nhits_cut)]
-          # preds = preds[(nhits> nhits_cut)]
-          # truth = truth[(nhits> nhits_cut)]
-          # labels = labels[(nhits> nhits_cut)]
-          # energies = energies[(nhits> nhits_cut)]
-          # directions = directions[(nhits> nhits_cut)]
-          # total_charge = total_charge[(nhits> nhits_cut)]
-          # towall = towall[(nhits> nhits_cut)]
-          # indices = indices[(nhits> nhits_cut)]
-          # dwalls = dwalls[(nhits> nhits_cut)]
-          # ranges = ranges[(nhits> nhits_cut)]
-          # nhits = nhits[(nhits> nhits_cut)]
-          
 
-          print(f'total number of particles after nhits cut, with label {settings.particleLabel}:', np.sum(labels==settings.particleLabel))
-
-          # fitqun is always same for all evals
+          #Apply cuts (2 / 3)  Extract ML events that are also in fitqun 
           ml_hash = fq.get_rootfile_eventid_hash(rootfiles, event_ids, fitqun=False)
           intersect, comm1, comm2 = np.intersect1d(fitqun_hash, ml_hash, return_indices=True)
           variables = [preds, truth, labels, energies, directions, total_charge, towall, nhits, indices, dwalls, ranges]
           variables = [var[comm2] for var in variables]
           preds, truth, labels, energies, directions, total_charge, towall, nhits, indices, dwalls, ranges = variables
-
-          # preds = preds[comm2]
-          # truth = truth[comm2]
-          # labels = labels[comm2]
-          # energies = energies[comm2]
-          # directions = directions[comm2]
-          # total_charge = total_charge[comm2]
-          # towall = towall[comm2]
-          # nhits = nhits[comm2]
-          # indices = indices[comm2]
-          # dwalls = dwalls[comm2]
-          # ranges = ranges[comm2]
-
-          print(f'total number of particles after nhits and fitqun, with label {settings.particleLabel}:', np.sum(labels==settings.particleLabel))
 
      cheThr = list(map(get_cherenkov_threshold, labels))
      visible_energy = energies - cheThr
@@ -117,25 +120,15 @@ def analyze_ml_regression(settings):
      print('events that would be excluded by fully contained cut', len(towall) - np.sum((labels==settings.particleLabel) & (towall > 2*ranges)))
      print('events that would be excluded by particle_nhits_towall_dwall_cut', len(towall) -  np.sum(particle_nhits_towall_dwall_mask))
 
+     # Apply cuts (3 / 3) 
      if settings.fullyContainedCut:
           print('fully contained applied')
-          particle_nhits_towall_dwall_mask = particle_nhits_towall_dwall_mask & (towall > 2*ranges)
+          particle_nhits_towall_dwall_mask = particle_nhits_towall_dwall_mask & (towall > 2 * ranges)
      variables = [preds, truth, directions, total_charge, visible_energy, indices, towall, nhits, dwalls, ranges]
      variables = [var[particle_nhits_towall_dwall_mask] for var in variables]
      preds, truth, directions, total_charge, visible_energy, indices, towall, nhits, dwalls, ranges = variables
-     # preds = preds[particle_nhits_towall_dwall_mask]
-     # truth = truth[particle_nhits_towall_dwall_mask]
-     # directions = directions[particle_nhits_towall_dwall_mask]
-     # total_charge = total_charge[particle_nhits_towall_dwall_mask]
-     # visible_energy = visible_energy[particle_nhits_towall_dwall_mask]
-     # indices = indices[particle_nhits_towall_dwall_mask]
-     # towall = towall[particle_nhits_towall_dwall_mask]
-     # nhits = nhits[particle_nhits_towall_dwall_mask]
-     # dwalls = dwalls[particle_nhits_towall_dwall_mask]
-     # ranges = ranges[particle_nhits_towall_dwall_mask]
 
      correction = 1
-
      if "positions" in target or "directions" in target:
           pred_x = preds[:,0]*correction 
           pred_y = preds[:,1]*correction
@@ -151,40 +144,9 @@ def analyze_ml_regression(settings):
           pred_0 = np.ravel(preds)
 
      flag_output_residuals = 0
-     if flag_output_residuals:
-          fract_residuals = (truth_0 - pred_0) / truth_0
-          large_residuals_index = []
-          for i in range(len(fract_residuals)):
-               if fract_residuals[i] < - 1:
-                    large_residuals_index.append(i)
-          print("index of large residuals after the cut", large_residuals_index)
-          large_residuals_idx_wrt_dataset = indices[large_residuals_index]
-          print("index of large residuals before the cut", large_residuals_idx_wrt_dataset)
-
-          file_path = '/data/thoriba/t2k/plots/muon_mom_fixed_dead_fully_cut/dead_with_mask/residual_check/residuals_info_idx2.csv'
-          data = []
-          for i, idx in enumerate(large_residuals_index):
-               data.append({
-                    'event_index': large_residuals_idx_wrt_dataset[i],
-                    'rootfile': rootfiles[idx],
-                    'event_id': event_ids[idx],
-                    'truth': truth_0[idx],
-                    'pred': pred_0[idx],
-                    'fractional_residual': fract_residuals[idx],
-                    'direction': directions[idx],
-                    'total_charge': total_charge[idx],
-                    'visible_energy': visible_energy[idx],
-                    'towall': towall[idx],
-                    'nhits': nhits[idx]
-               })
-
-          # Write data to CSV file
-          with open(file_path, mode='w', newline='') as file:
-               writer = csv.DictWriter(file, fieldnames=data[0].keys())
-               writer.writeheader()
-               writer.writerows(data)
-               
-
+     if flag_output_residuals and target == 'momenta':
+          export_mom_residuals(truth_0, pred_0, rootfiles, event_ids, directions, total_charge, visible_energy, towall, nhits, indices, settings)
+    
 
      vertex_axis, quantile_lst, quantile_error_lst, median_lst, median_error_lst = regression_analysis(from_path=False, true=truth_0, pred=pred_0, dir = directions, target=target, extra_string="ML_"+settings.plotName, save_plots=True, plot_path = settings.outputPlotPath)
      single_analysis = [vertex_axis, quantile_lst, quantile_error_lst, median_lst, median_error_lst] 
