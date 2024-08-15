@@ -44,14 +44,14 @@ def analyze_fitqun_regression(settings):
      energies = np.array(hy['energies'])[idx].squeeze()
      labels = np.array(hy['labels'])[idx].squeeze()
     #  momenta = np.ones(energies.shape[0])
-     
-
      #momenta[labels == 1] = np.sqrt(np.multiply(energies[labels==1], energies[labels==1]) - np.multiply(momenta[labels==1]*0.5,momenta[labels==1]*0.5))
     #  momenta = np.sqrt(np.multiply(energies, energies) - np.multiply(momenta*0.5,momenta*0.5))
-     ## CHANGE
-     momenta = mom_from_energies(energies, labels)
      #momenta[labels == 0] = np.sqrt(np.multiply(energies[labels==0], energies[labels==0]) - np.multiply(momenta[labels==0]*105.7,momenta[labels==0]*105.7))
      #momenta[labels == 2] = np.sqrt(np.multiply(energies[labels==2], energies[labels==2]) - np.multiply(momenta[labels==2]*139.584,momenta[labels==2]*139.584))
+     
+     # Change to momenta calculation to use the same method as `analyze_ml_regression`. Above is previous calculation
+     momenta = mom_from_energies(energies, labels)
+     
      rootfiles = np.array(hy['root_files'])[idx].squeeze()
      event_ids = np.array(hy['event_ids'])[idx].squeeze()
      angles = math.angles_from_direction(directions)
@@ -69,25 +69,29 @@ def analyze_fitqun_regression(settings):
      dwall_cut = settings.dwallCut
 
      #Apply cuts
-     nhits_towall_dwall_cut = (nhits > nhits_cut) & (towall > towall_cut) & (dwalls > dwall_cut)
+     # boolean array of events that pass the nhits, towall, dwall, and optionally fully contained cuts
+     is_nhits_tw_dw_fc = (nhits > nhits_cut) & (towall > towall_cut) & (dwalls > dwall_cut)
      
      if settings.fullyContainedCut:
          ranges = range_from_energy(energies, labels)
-         fully_contained_cut = towall > 2*ranges
-         nhits_towall_dwall_cut = nhits_towall_dwall_cut & fully_contained_cut
+         is_fully_contained = towall > 2 * ranges
+         is_nhits_tw_dw_fc = is_nhits_tw_dw_fc & is_fully_contained
      
+     variables = [event_ids, rootfiles, positions, directions, labels, momenta, energies, towall, nhits, dwalls, idx]
+     variables = [v[is_nhits_tw_dw_fc] for v in variables]
+     event_ids, rootfiles, positions, directions, labels, momenta, energies, towall, nhits, dwalls, indices = variables
      
-     event_ids = event_ids[nhits_towall_dwall_cut]
-     rootfiles = rootfiles[nhits_towall_dwall_cut]
-     positions = positions[nhits_towall_dwall_cut]
-     directions = directions[nhits_towall_dwall_cut]
-     labels = labels[nhits_towall_dwall_cut]
-     momenta = momenta[nhits_towall_dwall_cut]
-     energies = energies[nhits_towall_dwall_cut]
-     towall = towall[nhits_towall_dwall_cut]
-     nhits = nhits[nhits_towall_dwall_cut]
-     dwalls = dwalls[nhits_towall_dwall_cut]
-     indices = idx[nhits_towall_dwall_cut]
+    #  event_ids = event_ids[nhits_towall_dwall_cut]
+    #  rootfiles = rootfiles[nhits_towall_dwall_cut]
+    #  positions = positions[nhits_towall_dwall_cut]
+    #  directions = directions[nhits_towall_dwall_cut]
+    #  labels = labels[nhits_towall_dwall_cut]
+    #  momenta = momenta[nhits_towall_dwall_cut]
+    #  energies = energies[nhits_towall_dwall_cut]
+    #  towall = towall[nhits_towall_dwall_cut]
+    #  nhits = nhits[nhits_towall_dwall_cut]
+    #  dwalls = dwalls[nhits_towall_dwall_cut]
+    #  indices = idx[nhits_towall_dwall_cut]
 
      ml_hash = fq.get_rootfile_eventid_hash(rootfiles, event_ids, fitqun=False)
 
