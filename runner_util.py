@@ -13,7 +13,7 @@ from scipy.optimize import curve_fit
 
 from math import log
 
-import analysis.utils.math as math
+import WatChMaL.analysis.utils.math as math
 
 from generics_python.make_plots import generic_histogram, generic_2D_plot
 

@@ -16,13 +16,13 @@ import subprocess
 #from analysis.classification import WatChMaLClassification
 #from analysis.classification import plot_efficiency_profile
 #from analysis.utils.plotting import plot_legend
-import analysis.utils.math as math
+import WatChMaL.analysis.utils.math as math
 
 from analyze_output.analyze_regression import analyze_regression
 from analyze_output.analyze_classification import analyze_classification
 
 from runner_util import utils, analysisUtils, train_config, make_split_file
-from analysis.utils.binning import get_binning
+from WatChMaL.analysis.utils.binning import get_binning
 
 
 #from torchmetrics import AUROC, ROC
@@ -205,11 +205,11 @@ if args.doEvaluation:
     settings = utils()
     settings.outputPath = args.evaluationOutputDir
     settings.set_output_directory()
-    default_call = ["python", "WatChMaL/main.py", "--config-name=t2k_resnet_eval_classifier"] 
+    default_call = ["python", "WatChMaL/main.py", "--config-name=t2k_resnet_eval"] 
     indicesFile = check_list_and_convert(settings.indicesFile)
     perm_output_path = settings.outputPath
 
-    default_call = ["python", "WatChMaL/main.py", "--config-name=t2k_resnet_eval_classifier"] 
+    default_call = ["python", "WatChMaL/main.py", "--config-name=t2k_resnet_eval"] 
 
 
     settings.outputPath = args.evaluationInputDir

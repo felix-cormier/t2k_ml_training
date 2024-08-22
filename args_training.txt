@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 --doTraining
 --numFolds=30
 --indicesInput=/scratch/fcormier/t2k/ml/output_skdetsim/aug19_electrons_2GeV_2M_combine/multi_combine.hy
