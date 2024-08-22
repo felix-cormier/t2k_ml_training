@@ -1,7 +1,7 @@
 --doTraining
---numFolds=20
---indicesInput=/scratch/fcormier/t2k/ml/output_skdetsim/jan23_electrons_forRegression_5M_1/digi_combine.hy
---indicesOutputPath=/scratch/fcormier/t2k/ml/output_skdetsim/jan23_electrons_forRegression_5M_1/
+--numFolds=30
+--indicesInput=/scratch/fcormier/t2k/ml/output_skdetsim/aug19_electrons_2GeV_2M_combine/multi_combine.hy
+--indicesOutputPath=/scratch/fcormier/t2k/ml/output_skdetsim/aug19_electrons_2GeV_2M_combine/
 --evaluationInputDir=/fast_scratch/fcormier/t2k/ml/training/resnet_mar22_reg_electrons_pos_g200Hits_scheduler_scan_5M_1/22032024-142255/
 --evaluationOutputDir=/fast_scratch/fcormier/t2k/ml/training/resnet_mar22_reg_electrons_pos_g200Hits_scheduler_scan_5M_1/22032024-142255/
 --comparisonFolder=/fast_scratch/fcormier/t2k/ml/training/oct20_aferreira_combine_flatE/
