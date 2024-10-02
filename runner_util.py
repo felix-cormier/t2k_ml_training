@@ -13,7 +13,9 @@ from scipy.optimize import curve_fit
 
 from math import log
 
-import analysis.utils.math as math
+import WatChMaL.analysis.utils.math as math
+
+from generics_python.make_plots import generic_histogram, generic_2D_plot
 
 
 #from WatChMaL.watchmal.model.pointnet import PointNetFeat
@@ -43,6 +45,18 @@ def mom_from_energies(energies, labels):
     momenta[labels == 2] = np.sqrt(np.multiply(energies[labels==2], energies[labels==2]) - np.multiply(momenta[labels==2]*139.584,momenta[labels==2]*139.584))
     return momenta
 
+# computes range for each particle from energy, for muons and electrons. Range is used for fully contained cut. Not implemented for pions.
+def range_from_energy(energies, labels):
+     momenta = mom_from_energies(energies, labels)
+     ranges = np.zeros(momenta.shape[0])
+     e_shower_depth = np.zeros(momenta.shape[0])
+     range_fit_params = mom_to_range_dicts()
+     ranges[labels==0] = lq(momenta[labels==0], range_fit_params[0][0], range_fit_params[0][1], range_fit_params[0][2])
+     ranges[labels==1] = lq(momenta[labels==1], range_fit_params[1][0], range_fit_params[1][1], range_fit_params[1][2])
+     e_shower_depth[(labels==1)] = electron_shower_depth(energies[labels==1])
+     ranges[labels==1] = np.maximum(ranges[labels==1], e_shower_depth[labels==1])
+     return ranges
+
 def lq(x, a, b, c):
     return a+b*x+c*x*x
 
@@ -69,7 +83,7 @@ def electron_shower_depth(energy):
     return 36*(np.log(energy/10.))/(log(2)) 
 
 
-def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/', seed=0, nfolds=3):
+def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/', seed=0, nfolds=3, fully_contained=False, stopMu=False):
     """Outputs indices to split h5 files into train/test/val 
 
     Args:
@@ -106,7 +120,6 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
     #indices_to_keep = np.array(range(len(dwall_cut)))[np.where(np.ravel(h5py.File(h5_file,mode='r')['labels'])==1)]
     indices_to_keep = np.array(range(len(dwall_cut)))
     #print(indices_to_keep)
-    fully_contained=True
     
     with h5py.File(h5_file, mode='r') as h5fw:
         # select indices only with 'keep_event' == True (if key exists), instead of keeping all events
@@ -114,17 +127,24 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
             print("Running fully contained")
             labels = np.array(h5fw['labels'])
             energies = np.squeeze(h5fw['energies'])
+            momenta_threshold = mom_from_energies(np.array([160]),np.array([0]))
+            print(f"MOMENTA THRESHOLD: {momenta_threshold}")
             momenta = mom_from_energies(np.array(energies), labels)
+            #Only care about momentum above cherenkov threshold
+            momenta = momenta - momenta_threshold[0]
             ranges = np.zeros(momenta.shape[0])
             e_shower_depth = np.zeros(momenta.shape[0])
             range_fit_params = mom_to_range_dicts()
-            ranges[(labels==0) & (labels==2)] = lq(momenta[(labels==0) & (labels==1)], range_fit_params[0][0], range_fit_params[0][1], range_fit_params[0][2])
+            ranges[(labels==0) | (labels==2)] = lq(momenta[(labels==0) | (labels==2)], range_fit_params[0][0], range_fit_params[0][1], range_fit_params[0][2])
             ranges[(labels==1)] = lq(momenta[(labels==1)], range_fit_params[1][0], range_fit_params[1][1], range_fit_params[1][2])
             e_shower_depth[(labels==1)] = electron_shower_depth(energies[labels==1])
             ranges[labels==1] = np.maximum(ranges[labels==1], e_shower_depth[labels==1])
             towall = math.towall(np.squeeze(h5fw['positions']), np.array(h5fw['angles']), tank_axis = 2)
 
 
+            print(momenta[(labels==0) | (labels==2)])
+            print(f"RANGES: {ranges}")
+            print(f"LABELS: {labels}")
             towall_compare = towall > 2*ranges
 
             #print(np.unique(towall_compare, return_counts=True))
@@ -132,24 +152,38 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
             #print(f"towall: {towall[towall_compare==False]}")
             #print(f"range: {ranges[towall_compare==False]}")
             #print(f"momenta: {momenta[towall_compare==False]}")
-        if 'keep_event' in h5fw.keys():
+        if stopMu:
+            events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
+            nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
+            indices_to_keep = np.where(np.logical_and(labels==0,nhits>200))
+        elif 'keep_event' in h5fw.keys():
             print(f'NEW! WARNING: Removing additional events to flatten truth visible energy distribution')
 
             events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
             nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
 
             keep_bool = np.array(h5fw['keep_event'])
+            print(np.unique(keep_bool,return_counts=True))
+            print(np.unique(towall_compare,return_counts=True))
+            print(np.unique(labels,return_counts=True))
             if fully_contained:
-                indices_to_keep = np.where(np.logical_and(np.logical_and(towall_compare == True, keep_bool==True),labels==1), nhits > 200)[0] 
+                indices_to_keep = np.where(np.logical_and(np.logical_and(np.logical_and(towall_compare == True, towall_compare==True),labels==1), nhits > 200))[0] 
+                generic_histogram(towall, 'Towall [cm]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'towall_noCuts', range = [0,5000], y_name = "a.u.", label="No Cuts", bins=20, doNorm=True)
+                generic_histogram(towall[indices_to_keep], 'Towall [cm]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'towall_rangeCut', range = [0,5000], y_name = "a.u.", label="Range Cut", bins=20, doNorm=True)
+                generic_histogram(momenta, 'Truth Visible Momentum [MeV]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'truth_vm_noCuts', range=[50,2000], y_name = "a.u.", label="No Cuts", bins=40, doNorm=True)
+                generic_histogram(momenta[indices_to_keep], 'Truth Visible Momentum [MeV]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'truth_vm_rangeCut', range=[50,2000], y_name = "a.u.", label="Range Cut", bins=40, doNorm=True)
             else:
-                indices_to_keep = np.where(np.logical_and(np.logical_and(keep_bool == True, labels==1), nhits > 200))[0] 
+                #indices_to_keep = np.where(np.logical_and(np.logical_and(keep_bool == True, labels==1), nhits > 200))[0] 
+                indices_to_keep = np.where(np.logical_and(keep_bool == True, nhits > 200))[0] 
+                print("KEEP EVENT AND NOT FULLY CONTAINED")
             print(nhits)
             #indices_to_keep = np.where(keep_bool == True)[0] 
         elif fully_contained:
             events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
             print(events_hits_index)
             nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
-            indices_to_keep = np.where(np.logical_and(np.logical_and(towall_compare==True, labels==1), nhits>200))
+            indices_to_keep = np.where(np.logical_and(np.logical_and(towall_compare==True, labels==0), nhits>200))
+            print("Adding fully contained to cut")
         #Keep all    
 
         else:
@@ -159,8 +193,9 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
             #print(events_hits_index)
             nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
             #print(f'itk length: {len(indices_to_keep)}')
-            print(np.ravel(h5py.File(h5_file,mode='r')['labels'])==1)
-            indices_to_keep = np.where(np.logical_and(np.ravel(h5py.File(h5_file,mode='r')['labels'])==1, nhits > 200))
+            print(np.ravel(h5py.File(h5_file,mode='r')['labels'])==0)
+            print("NOT FULLY CONTAINED OR KEEP_EVENT")
+            indices_to_keep = np.where(np.logical_and(np.ravel(h5py.File(h5_file,mode='r')['labels'])==0, nhits > 200))
             print(indices_to_keep)
             #print(f'itk length after: {indices_to_keep[0].shape}')
             #print(np.unique(nhits > 1000, return_counts=True))
@@ -200,6 +235,21 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
 
         np.savez(output_path + 'train'+str(train_val_test_split[0])+'_val'+str(train_val_test_split[1])+'_test'+str(1-train_val_test_split[0]-train_val_test_split[1])+'.npz',
                     test_idxs=test_indices, val_idxs=val_indices, train_idxs=train_indices)
+    elif stopMu:
+        print("Stopping Muons: all test indices")
+        test_indices = np.array(list(range(len(dwall_cut))))
+        print(test_indices)
+        print(indices_to_keep)
+        test_indices = test_indices[np.isin(test_indices, indices_to_keep)]
+        train_indices = []
+        val_indices = []
+        print(f"Test indices: {test_indices}")
+        print(f"Val indices: {val_indices}")
+        print(f"Train indices: {train_indices}")
+        print(output_path)
+        print(np.unique(np.ravel(labels)[test_indices],return_counts=True))
+        np.savez(output_path + 'train_val_test_stopMu.npz',
+                test_idxs=test_indices, val_idxs=val_indices, train_idxs=train_indices)
     else:
         kf = KFold(n_splits=nfolds, shuffle=True, random_state=seed)
         for i, (train_rootfile_indices, test_index) in enumerate(kf.split(range(length_rootfiles))):
@@ -243,7 +293,7 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
             print(np.unique(np.ravel(labels)[test_indices],return_counts=True))
             #print(f'TOTAL: {np.unique(np.ravel(labels)[train_indices], return_counts=True)[1][0] + np.unique(np.ravel(labels)[val_indices],return_counts=True)[1][0] + np.unique(np.ravel(labels)[test_indices],return_counts=True)[1][0]}')
             print(output_path)
-            np.savez(output_path + 'train_val_test_gt200Hits_FCTEST_nFolds'+str(nfolds)+'_fold'+str(i)+'.npz',
+            np.savez(output_path + 'train_val_test_gt200Hits_fullyContained_nFolds'+str(nfolds)+'_fold'+str(i)+'.npz',
                     test_idxs=test_indices, val_idxs=val_indices, train_idxs=train_indices)
 
 
@@ -570,6 +620,8 @@ class analysisUtils():
                 self.doFiTQun = config[arch].getboolean(key)
             elif 'DoCombination'.lower() in key.lower():
                 self.doCombination = config[arch].getboolean(key)
+            elif 'getfiTQunTruth'.lower() in key.lower():
+                self.getfiTQunTruth = config[arch].getboolean(key)
             elif 'NetworkArchitecture'.lower() in key.lower():
                 self.arch = config[arch][key]
             elif 'mlPath'.lower() in key.lower():

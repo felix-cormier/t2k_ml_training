@@ -1,13 +1,18 @@
 #!/bin/bash
-#SBATCH --account=rpp-blairt2k
+#SBATCH --account=def-blairt2k
 #SBATCH --output=/scratch/fcormier/t2k/ml/logfiles/%x.%A.out
 #SBATCH --error=/scratch/fcormier/t2k/ml/logfiles/%x.%A.err
+#SBATCH --gpus-per-node=v100l:4         # Number of GPU(s) per node
+#SBATCH --cpus-per-gpu=6         # CPU cores/threads
+#SBATCH --mem=160000M               # memory per node
+#SBATCH --time=3-00:00
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_GPU
+export HYDRA_FULL_ERROR=1
 
-/home/fcormier/misc/bashrc
 
 #Copy file you want to use to train to the GPU machine
 #cp /scratch/fcormier/t2k/ml/output_skdetsim/apr3_eMuPiPlus_1500MeV_2M_1/multi_combine.hy $SLURM_TMPDIR/
-cp /scratch/fcormier/t2k/ml/output_skdetsim/jan23_electrons_forRegression_5M_1/digi_combine.hy $SLURM_TMPDIR/
+cp /scratch/fcormier/t2k/ml/output_skdetsim/jul18_muons_2GeV_2M_combine/multi_combine.hy $SLURM_TMPDIR/
 
 module load StdEnv/2023
 module load apptainer/1.2.4
