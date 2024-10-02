@@ -15,6 +15,8 @@ import matplotlib
 from matplotlib import pyplot as plt
 from matplotlib.offsetbox import AnchoredText
 
+from runner_util import range_from_energy
+
 
 from scipy.optimize import curve_fit
 from scipy.stats.mstats import mquantiles_cimj
@@ -60,7 +62,9 @@ def un_normalize(data, norm_min=-1, x_bounds=(-1600,1600), y_bounds=(-1600,1600)
 def regression_analysis_perVar(from_path=True, dirpath='outputs', combine=True, true=None, pred=None, dir = None, variable = None, target = 'positions', extra_string = "", save_plots=False):
 
     var_max = np.amax(variable)
+    old_var_max = np.amax(variable)
     var_min = np.amin(variable)
+    old_var_min = np.amin(variable)
 
     bin_dict = {}
     quant_dict = {}
@@ -72,18 +76,38 @@ def regression_analysis_perVar(from_path=True, dirpath='outputs', combine=True, 
     if var_max - var_min <= 100:
         divisor=10
     if var_max - var_min > 100:
-        divisor=100
+        divisor=50
+        var_min=100
+        var_max=1000
         if var_min-divisor < 0:
             var_min=0
             if var_max > 2000:
-                var_min=100
+                divisor=200
+                var_min=200
         #Round max to nearest 100
         var_max = float(ceil((var_max-divisor)/100.0))*100.
-        if var_max > 4000:
-            var_max=4000
-    print(f"var min: {var_min}, var max: {var_max}, var num: {int((var_max-var_min)/divisor)+1}, divisor: {divisor}")
+        if var_max > 4500:
+            divisor=200
+            var_max=4500
+            var_min=200
+    
     var_bins = np.linspace(var_min,var_max, num=int((var_max-var_min)/divisor)+1)
-    print(f"VAR BINS: {var_bins}")
+    #var_min=200
+    if len(var_bins) > 10 and old_var_max > 1200:
+        if old_var_min > 100:
+            divisor=100
+            var_min=350
+            var_max=2550
+        else:
+            divisor=100
+            var_min=0
+            var_max=800
+    print(f"var max: {var_max}, var min : {var_min}, divisor: {divisor}")
+    var_bins = np.linspace(var_min,var_max, num=int((var_max-var_min)/divisor)+1)
+    #print(f"var min: {var_min}, var max: {var_max}, var num: {int((var_max-var_min)/divisor)+1}, divisor: {divisor}")
+    #print(f"Varible: {variable}")
+    #print(f"var min: {var_min}, var max: {var_max}, divisor: {divisor}")
+    #print(f"VAR BINS: {var_bins}")
     quantile, mu = [], []
 
     for i, bin in enumerate(tqdm(var_bins)):
@@ -183,7 +207,7 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
         xlimit=15.
         ylimit=15.
      if "momentum" in target or "energies" in target or "momenta" in target:
-        xlimit=4
+        xlimit=2
         ylimit=4
      line = np.linspace(-xlimit, xlimit, 10000) 
      residual_lst, residual_lst_wcut, quantile_lst,quantile_error_lst, median_lst, median_error_lst = [], [], [], [], [], []
@@ -208,19 +232,41 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
              true = np.hstack((true, np.reshape(np.sqrt(np.square(true[:,0] -pred[:,0])+ np.square(true[:,1] - pred[:,1]) + np.square(true[:,2] - pred[:,2])), (true.shape[0], 1))))
              pred = np.hstack((pred, np.reshape(np.square(pred[:,0] )*0, (pred.shape[0], 1))))
          if 'Longitudinal' in vertex_axis[i] and "positions" in target:
-             total_magnitude_pred, longitudinal_component_pred, _ = math.decompose_along_direction(pred[:,0:3], dir)
-             total_magnitude_true, longitudinal_component_true, _ = math.decompose_along_direction(true[:,0:3], dir)
-             temp_true = longitudinal_component_true
-             temp_pred = longitudinal_component_pred
-             true = np.hstack((true, np.reshape(temp_true, (true.shape[0], 1))))
-             pred = np.hstack((pred, np.reshape(temp_pred, (pred.shape[0], 1))))
+             #total_magnitude_pred, longitudinal_component_pred, _ = math.decompose_along_direction(pred[:,0:3], dir)
+             #total_magnitude_true, longitudinal_component_true, _ = math.decompose_along_direction(true[:,0:3], dir)
+             #temp_true = longitudinal_component_true
+             #temp_pred = longitudinal_component_pred
+             #true = np.hstack((true, np.reshape(temp_true, (true.shape[0], 1))))
+             #pred = np.hstack((pred, np.reshape(temp_pred, (pred.shape[0], 1))))
+
+             temp_true = np.array(np.reshape([true[:,0] -pred[:,0], true[:,1] - pred[:,1], true[:,2] - pred[:,2]], (true.shape[0],3)))
+             total_magnitude_true, longitudinal_component_true, _ = math.decompose_along_direction(temp_true[:,0:3], dir)
+
+
+
+             #total_magnitude_pred, _, transverse_component_pred = math.decompose_along_direction(pred[:,0:3], dir)
+             #total_magnitude_true, _, transverse_component_true = math.decompose_along_direction(true[:,0:3], dir)
+             #temp_true = transverse_component_true
+             #temp_pred = transverse_component_pred
+             true = np.hstack((true, np.reshape(longitudinal_component_true, (true.shape[0], 1))))
+             #pred = np.hstack((pred, np.reshape(temp_pred, (pred.shape[0], 1))))
+             pred = np.hstack((pred, np.reshape(np.square(pred[:,0] )*0, (pred.shape[0], 1))))
+
+
+
          if 'Transverse' in vertex_axis[i] and "positions" in target:
-             total_magnitude_pred, _, transverse_component_pred = math.decompose_along_direction(pred[:,0:3], dir)
-             total_magnitude_true, _, transverse_component_true = math.decompose_along_direction(true[:,0:3], dir)
-             temp_true = transverse_component_true
-             temp_pred = transverse_component_pred
-             true = np.hstack((true, np.reshape(temp_true, (true.shape[0], 1))))
-             pred = np.hstack((pred, np.reshape(temp_pred, (pred.shape[0], 1))))
+             temp_true = np.array(np.reshape([true[:,0] -pred[:,0], true[:,1] - pred[:,1], true[:,2] - pred[:,2]], (true.shape[0],3)))
+             total_magnitude_true, _, transverse_component_true = math.decompose_along_direction(temp_true[:,0:3], dir)
+
+
+
+             #total_magnitude_pred, _, transverse_component_pred = math.decompose_along_direction(pred[:,0:3], dir)
+             #total_magnitude_true, _, transverse_component_true = math.decompose_along_direction(true[:,0:3], dir)
+             #temp_true = transverse_component_true
+             #temp_pred = transverse_component_pred
+             true = np.hstack((true, np.reshape(transverse_component_true, (true.shape[0], 1))))
+             #pred = np.hstack((pred, np.reshape(temp_pred, (pred.shape[0], 1))))
+             pred = np.hstack((pred, np.reshape(np.square(pred[:,0] )*0, (pred.shape[0], 1))))
 
          if "Angle" in vertex_axis[i]:
              unit_vector_pred = np.transpose(np.array([np.divide(pred[:,0],np.linalg.norm(pred[:,0:3], axis=1)), np.divide(pred[:,1],np.linalg.norm(pred[:,0:3], axis=1)), np.divide(pred[:,2],np.linalg.norm(pred[:,0:3], axis=1))]) )
@@ -321,7 +367,7 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
 
 
 
-             if "positions"in target and "Global" in vertex_axis[i]:
+             if "positions"in target and ("Global" in vertex_axis[i] or "Transverse" in vertex_axis[i]):
                 plt.xlim(0,500) 
              elif "directions"in target and "Angle" in vertex_axis[i]:
                 plt.xlim(0,15) 
@@ -334,7 +380,7 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
              if "directions" in target:
                  unit=''
              if "momentum" in target or "momenta" in target:
-                 unit='[MeV]'
+                 unit='%'
              plt.xlabel('True ' + target + ' ' + unit)
              plt.ylabel('Predicted ' + target + ' ' + unit)
              #plt.show()
@@ -347,7 +393,7 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
                 residuals = true[:,i] - pred[:,i] 
              cut = 500
              if "momentum" in target or "energies" in target or "momenta" in target:
-                 cut = 10
+                 cut = 100
              residuals_cut = [] 
              for r in range(len(residuals)):
                  if -cut < residuals[r] <  cut:
@@ -355,50 +401,86 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
                      
              #numerical_std = np.std(residuals_cut) 
              #Is actually median
-             numerical_median = np.median(residuals_cut) 
+             numerical_median = np.mean(residuals_cut) 
              #Compute mean for error
              mean_error = np.std(residuals_cut)/np.sqrt(len(residuals_cut))
              mean_to_median = np.sqrt(3.14*((2.*float(len(residuals_cut))+1.)/(4.*(len(residuals_cut)))))
              median_error = mean_error * mean_to_median
-             if ("positions"in target and "Global" in vertex_axis[i]) or ("directions" in target and "Angle" in vertex_axis[i]):
+             if ("positions"in target and ("Global" in vertex_axis[i] or "Transverse" in vertex_axis[i])) or ("directions" in target and "Angle" in vertex_axis[i]):
                  quantile = np.quantile(residuals_cut,0.68)
                  quantile_error = mquantiles_cimj(residuals_cut, prob=0.68)
                  #quantile_error = (quantile-np.ravel(quantile_error)[0], np.ravel(quantile_error)[1]-quantile)
              else:
                 (numerical_bot_quantile, numerical_top_quantile) = np.quantile(residuals_cut, [0.159,0.841])
                 #numerical_top_quantile = np.quantile(residuals_cut, 0.841)
-                #quantile = (np.abs((numerical_median-numerical_bot_quantile))+np.abs((numerical_median-numerical_top_quantile)))/2
-                quantile = np.quantile(np.abs(residuals_cut),0.68)
+                quantile = (np.abs((numerical_median-numerical_bot_quantile))+np.abs((numerical_median-numerical_top_quantile)))/2
+                #quantile = np.quantile(np.abs(residuals_cut),0.68)
                 quantile_error = mquantiles_cimj(np.abs(residuals_cut), prob=[0.68])
                 #quantile_error = (((quantile_error[1][0] - quantile_error[0][0])/2),((quantile_error[1][1] - quantile_error[0][1])/2))
              quantile_error = float((quantile_error[1]-quantile_error[0])/2.)
+             double_gaussian = False
 
              yhist, xhist, _ = plt.hist(residuals_cut, bins=100, alpha=0.7, color=color, range=[-xlimit, xlimit])
              p0 = [40, 0, 70] 
              if "directions" in target or "momentum" in target or "energies" in target or "momenta" in target:
-                 p0 = [40, 0, 0.03]
-             '''
-             popt, pcov = curve_fit(gaussian, (xhist[1:]+xhist[:-1])/2, yhist, bounds=(-np.inf, np.inf), p0=p0)    
-             perr = np.sqrt(np.diag(pcov))
-             mu = round(popt[1], dec_to_round)
-             mu_uncert = round(perr[1], dec_to_round)
-             std = round(popt[2], dec_to_round)
-             std_uncert = round(perr[2], dec_to_round)
-             '''
+                 if double_gaussian:
+                    p0 = [1000, 100, 0.002, 0.002, 0.005, 0.1]
+                 else:
+                    p0 = [1000, 0.002, 0.005]
 
-             #plt.plot(line, gaussian(line, *popt), alpha=1, color='black', label='guassian fit')
+             dec_to_round = 5
 
-             dec_to_round = 2
-             if "directions" in target or "energies" in target or "momentum" in target or "momenta":
-                 dec_to_round = 5
+             if double_gaussian:
+                popt, pcov = curve_fit(double_gaussian, (xhist[1:]+xhist[:-1])/2, yhist, bounds=(-np.inf, np.inf), p0=p0, maxfev=10000)    
+                perr = np.sqrt(np.diag(pcov))
+                a0 = popt[0]
+                a1 = popt[1]
+                mu0 = round(popt[2], dec_to_round)
+                mu0_uncert = round(perr[2], dec_to_round)
+                std0 = round(popt[4], dec_to_round)
+                std0_uncert = round(perr[4], dec_to_round)
+
+                mu1 = round(popt[3], dec_to_round)
+                mu1_uncert = round(perr[3], dec_to_round)
+                std1 = round(popt[5], dec_to_round)
+                std1_uncert = round(perr[5], dec_to_round)
+
+                print(f"Gaussin ao: {a0}, mu0: {mu0}, std0: {std0}, a1: {a1}, mu1: {mu1}, std1: {std1}")
+
+                plt.plot(line, double_gaussian(line, *popt), alpha=1, color='black', label='guassian fit')
+
+             else:
+                popt, pcov = curve_fit(gaussian, (xhist[1:]+xhist[:-1])/2, yhist, bounds=(-np.inf, np.inf), p0=p0, maxfev=10000)    
+                perr = np.sqrt(np.diag(pcov))
+                a0 = popt[0]
+                mu0 = round(popt[1], dec_to_round)
+                mu0_uncert = round(perr[1], dec_to_round)
+                std0 = round(popt[2], dec_to_round)
+                std0_uncert = round(perr[2], dec_to_round)
+                print(f"Gaussin ao: {a0}, mu0: {mu0} p/m {mu0_uncert}, std0: {std0} p/m {std0_uncert}")
+                if mu0_uncert < 0.000000001:
+                    mu0_uncert = 0.000000001
+                if std0_uncert < 0.000000001:
+                    std0_uncert = 0.000000001
+
+                plt.plot(line, gaussian(line, *popt), alpha=1, color='black', label='guassian fit')
+
+             if "momentum" in target or "momenta" in target or "energies" in target or ("positions" in target and "Longitudinal" in target):
+                numerical_median = mu0
+                quantile = std0
+                median_error = mu0_uncert
+                quantile_error = std0_uncert
+
+             if "directions" in target or "energies" in target or "momentum" in target or "momenta" in target:
+                 dec_to_round = 2
              # round numbers
 
              if "momenta" in target or "momentum" in target:
-                plt.text(0.6, 0.7, '{} \n $\mu$ = {:.5f} $\pm${} {} \n Quant. = {:.5f} $\pm${} {}'.format(extra_string, round(numerical_median,dec_to_round), round_sig(median_error), unit, round(quantile, dec_to_round), round_sig(quantile_error), unit), fontsize=9, transform = plt.gca().transAxes, bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=1'))
+                plt.text(0.6, 0.7, '{} \n $\mu$ = {:.2f} $\pm${} {} \n Quant. = {:.2f} $\pm${} {}'.format(extra_string, round(numerical_median*100,dec_to_round), round_sig(median_error*100), unit, round(quantile*100, dec_to_round), round_sig(quantile_error*100), unit), fontsize=9, transform = plt.gca().transAxes, bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=1'))
              else:
                 plt.text(0.6, 0.7, '{} \n $\mu$ = {:.2f} $\pm${} {} \n Quant. = {:.2f} $\pm${} {}'.format(extra_string, round(numerical_median,dec_to_round), round_sig(median_error), unit, round(quantile, dec_to_round), round_sig(quantile_error), unit), fontsize=9, transform = plt.gca().transAxes, bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=1'))
 
-             if "positions"in target and "Global" in vertex_axis[i]:
+             if "positions"in target and ("Global" in vertex_axis[i] or "Transverse" in vertex_axis[i]):
                 plt.xlim(0,xlimit) 
              elif "directions"in target and "Angle" in vertex_axis[i]:
                 plt.xlim(0,15) 
@@ -452,6 +534,9 @@ def un_normalize(data, x_bounds=(-1600,1600), y_bounds=(-1600,1600), z_bounds=(-
 
 def gaussian(x, a, mean, sigma):
      return a * np.exp(-((x - mean)**2 / (2 * sigma**2)))
+
+def double_gaussian(x, a0, a1, mean0, mean1, sigma0, sigma1):
+     return (a0 * np.exp(-((x - mean0)**2 / (2 * sigma0**2)))) + (a1 * np.exp(-((x - mean1)**2 / (2 * sigma1**2))))
 
 
 

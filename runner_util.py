@@ -43,6 +43,18 @@ def mom_from_energies(energies, labels):
     momenta[labels == 2] = np.sqrt(np.multiply(energies[labels==2], energies[labels==2]) - np.multiply(momenta[labels==2]*139.584,momenta[labels==2]*139.584))
     return momenta
 
+# computes range for each particle from energy, for muons and electrons. Range is used for fully contained cut. Not implemented for pions.
+def range_from_energy(energies, labels):
+     momenta = mom_from_energies(energies, labels)
+     ranges = np.zeros(momenta.shape[0])
+     e_shower_depth = np.zeros(momenta.shape[0])
+     range_fit_params = mom_to_range_dicts()
+     ranges[labels==0] = lq(momenta[labels==0], range_fit_params[0][0], range_fit_params[0][1], range_fit_params[0][2])
+     ranges[labels==1] = lq(momenta[labels==1], range_fit_params[1][0], range_fit_params[1][1], range_fit_params[1][2])
+     e_shower_depth[(labels==1)] = electron_shower_depth(energies[labels==1])
+     ranges[labels==1] = np.maximum(ranges[labels==1], e_shower_depth[labels==1])
+     return ranges
+
 def lq(x, a, b, c):
     return a+b*x+c*x*x
 
@@ -69,7 +81,7 @@ def electron_shower_depth(energy):
     return 36*(np.log(energy/10.))/(log(2)) 
 
 
-def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/', seed=0, nfolds=3):
+def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/', seed=0, nfolds=3, stopMu=False):
     """Outputs indices to split h5 files into train/test/val 
 
     Args:
@@ -132,7 +144,11 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
             #print(f"towall: {towall[towall_compare==False]}")
             #print(f"range: {ranges[towall_compare==False]}")
             #print(f"momenta: {momenta[towall_compare==False]}")
-        if 'keep_event' in h5fw.keys():
+        if stopMu:
+            events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
+            nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
+            indices_to_keep = np.where(np.logical_and(labels==0,nhits>200))
+        elif 'keep_event' in h5fw.keys():
             print(f'NEW! WARNING: Removing additional events to flatten truth visible energy distribution')
 
             events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
@@ -149,7 +165,8 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
             events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
             print(events_hits_index)
             nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
-            indices_to_keep = np.where(np.logical_and(np.logical_and(towall_compare==True, labels==1), nhits>200))
+            indices_to_keep = np.where(np.logical_and(np.logical_and(towall_compare==True, labels==0), nhits>200))
+            print("Adding fully contained to cut")
         #Keep all    
 
         else:
@@ -199,6 +216,21 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
 
         np.savez(output_path + 'train'+str(train_val_test_split[0])+'_val'+str(train_val_test_split[1])+'_test'+str(1-train_val_test_split[0]-train_val_test_split[1])+'.npz',
                     test_idxs=test_indices, val_idxs=val_indices, train_idxs=train_indices)
+    elif stopMu:
+        print("Stopping Muons: all test indices")
+        test_indices = np.array(list(range(len(dwall_cut))))
+        print(test_indices)
+        print(indices_to_keep)
+        test_indices = test_indices[np.isin(test_indices, indices_to_keep)]
+        train_indices = []
+        val_indices = []
+        print(f"Test indices: {test_indices}")
+        print(f"Val indices: {val_indices}")
+        print(f"Train indices: {train_indices}")
+        print(output_path)
+        print(np.unique(np.ravel(labels)[test_indices],return_counts=True))
+        np.savez(output_path + 'train_val_test_stopMu.npz',
+                test_idxs=test_indices, val_idxs=val_indices, train_idxs=train_indices)
     else:
         kf = KFold(n_splits=nfolds, shuffle=True, random_state=seed)
         for i, (train_rootfile_indices, test_index) in enumerate(kf.split(range(length_rootfiles))):
@@ -242,7 +274,7 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
             print(np.unique(np.ravel(labels)[test_indices],return_counts=True))
             #print(f'TOTAL: {np.unique(np.ravel(labels)[train_indices], return_counts=True)[1][0] + np.unique(np.ravel(labels)[val_indices],return_counts=True)[1][0] + np.unique(np.ravel(labels)[test_indices],return_counts=True)[1][0]}')
             print(output_path)
-            np.savez(output_path + 'train_val_test_gt200Hits_FCTEST_nFolds'+str(nfolds)+'_fold'+str(i)+'.npz',
+            np.savez(output_path + 'train_val_test_gt200Hits_FC_nFolds'+str(nfolds)+'_fold'+str(i)+'.npz',
                     test_idxs=test_indices, val_idxs=val_indices, train_idxs=train_indices)
 
 
@@ -569,6 +601,8 @@ class analysisUtils():
                 self.doFiTQun = config[arch].getboolean(key)
             elif 'DoCombination'.lower() in key.lower():
                 self.doCombination = config[arch].getboolean(key)
+            elif 'getfiTQunTruth'.lower() in key.lower():
+                self.getfiTQunTruth = config[arch].getboolean(key)
             elif 'NetworkArchitecture'.lower() in key.lower():
                 self.arch = config[arch][key]
             elif 'mlPath'.lower() in key.lower():

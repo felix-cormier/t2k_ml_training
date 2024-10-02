@@ -189,7 +189,7 @@ def end_training(settings, variable_list=[], variables=[]):
 #    compare_outputs(args.comparisonFolder)
 
 if args.doIndices:
-    make_split_file(args.indicesInput, train_val_test_split=[0.05,0.05], output_path=args.indicesOutputPath, nfolds=args.numFolds, seed=0)
+    make_split_file(args.indicesInput, train_val_test_split=[0.05,0.05], output_path=args.indicesOutputPath, nfolds=args.numFolds, seed=0, stopMu=False)
 
 #settings = utils()
 #kernel_size = settings.kernel
@@ -205,7 +205,6 @@ if args.doEvaluation:
     settings = utils()
     settings.outputPath = args.evaluationOutputDir
     settings.set_output_directory()
-    default_call = ["python", "WatChMaL/main.py", "--config-name=t2k_resnet_eval"] 
     indicesFile = check_list_and_convert(settings.indicesFile)
     perm_output_path = settings.outputPath
 

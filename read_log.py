@@ -49,14 +49,19 @@ markers = ['.','^','o']
 for i, file in enumerate(files):
     x_temp, y_temp, x_best_temp, y_best_temp = output_column_from_csv(file, "loss")
     base_filename = os.path.basename(os.path.normpath(file))
-    plt.scatter(x_temp, y_temp, c=colors[i], marker=markers[i], label=base_filename, alpha=0.5)
+    label_string = base_filename
+    if "train" in base_filename:
+        label_string = "Training"
+    elif "val" in base_filename:
+        label_string = "Validation"
+    plt.scatter(x_temp, y_temp, c=colors[i], marker=markers[i], label=label_string, alpha=0.5)
     if len(x_best_temp) > 0:
         plt.scatter(x_best_temp, y_best_temp, c='orange', marker=markers[i], label='Best')
     print(f'Min loss: {np.amin(y_temp)} for file {base_filename}')
 
 plt.xlabel("Iteration")
 plt.ylabel("Loss")
-plt.ylim(0.1,10)
+plt.ylim(0.1,5)
 plt.yscale('log')
 plt.legend()
 plt.savefig(output_path)
