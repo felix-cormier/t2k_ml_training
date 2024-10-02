@@ -25,7 +25,7 @@ from runner_util import utils, analysisUtils, train_config, make_split_file
 from WatChMaL.analysis.utils.binning import get_binning
 
 
-from torchmetrics import AUROC, ROC
+#from torchmetrics import AUROC, ROC
 
 #from lxml import etree
 
@@ -99,7 +99,7 @@ def training_runner(rank, settings, kernel_size, stride):
 def init_training():
     """Reads util_config.ini, constructs command to run 1 training
     """
-    onCedar=False
+    onCedar=True
 
     settings = utils()
     settings.set_output_directory()
@@ -107,7 +107,7 @@ def init_training():
     indicesFile = check_list_and_convert(settings.indicesFile)
     #Make sure the name of file matches the one you copy/set in util_config.ini
     if settings.batchSystem:
-        inputPath = [os.getenv('SLURM_TMPDIR') + '/digi_combine.hy'] 
+        inputPath = [os.getenv('SLURM_TMPDIR') + '/multi_combine.hy'] 
     else:
         inputPath = check_list_and_convert(settings.inputPath)
     featureExtractor = check_list_and_convert(settings.featureExtractor)
@@ -189,7 +189,7 @@ def end_training(settings, variable_list=[], variables=[]):
 #    compare_outputs(args.comparisonFolder)
 
 if args.doIndices:
-    make_split_file(args.indicesInput, train_val_test_split=[0.05,0.05], output_path=args.indicesOutputPath, nfolds=args.numFolds, seed=0, stopMu=False)
+    make_split_file(args.indicesInput, train_val_test_split=[0.05,0.05], output_path=args.indicesOutputPath, nfolds=args.numFolds, seed=0, stopMu=False, fuly_contaiend=True)
 
 #settings = utils()
 #kernel_size = settings.kernel
