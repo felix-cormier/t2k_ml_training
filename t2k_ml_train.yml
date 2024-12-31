@@ -1,0 +1,14 @@
+name: t2k_ml_train_2
+channels:
+  - defaults
+dependencies:
+  - numpy
+  - cudatoolkit
+  - pytorch
+  - debugpy
+  - torchvision
+  - h5py
+  - pandas
+  - matplotlib
+  - scikit-learn
+prefix: /home/fcormier/miniconda3/envs/t2k_ml_train
