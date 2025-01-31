@@ -1,6 +1,6 @@
 --doAnalysis
 --numFolds=20
---indicesInput=/fast_scratch_2/fcormier/t2k/ml/data/mar22_muons_forRegression_5M_1/digi_combine.hy
---indicesOutputPath=/fast_scratch_2/fcormier/t2k/ml/data/mar22_muons_forRegression_5M_1/
---evaluationInputDir=/data/fcormier/training/resnet_sep3_muons_momenta_gt200Hits_fullyContained_janData_timeO400S1000_inference_2/05092024-002403/
---evaluationOutputDir=/data/fcormier/training/resnet_sep3_muons_momenta_gt200Hits_fullyContained_janData_timeO400S1000_inference_2/05092024-002403/
+--indicesInput=/data/fcormier/sk/stopMu/fullSample/digi_combine.hy
+--indicesOutputPath=/data/fcormier/sk/stopMu/fullSample/
+--evaluationInputDir=/fast_scratch_2/fcormier/t2k/ml/training/resnet_jan8_muons_positions_minus50cmFC_noDeadPMTs_seed_gt200Hits_flatVE_6MMNewData_timeO400S1000_1/09012025-110925/
+--evaluationOutputDir=/fast_scratch_2/fcormier/t2k/ml/training/resnet_jan8_muons_positions_minus50cmFC_noDeadPMTs_seed_gt200Hits_flatVE_6MMNewData_timeO400S1000_1/09012025-110925/

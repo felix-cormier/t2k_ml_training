@@ -28,8 +28,16 @@ from tqdm import tqdm
 
 from math import log10, floor, ceil
 
+from analyze_output.analyze_mcData import analyze_ml_regression_dataMC, analyze_fitqun_regression_dataMC
+
 def analyze_classification(settings):
 
+    if settings.doDataMC:
+        total_charge_cut = 10000
+        nhits_cut = 200
+        if settings.doML:
+            analyze_ml_regression_dataMC(settings, total_charge_cut, nhits_cut)
+            return 0
 
     # retrieve test indices
     #idx = np.array(sorted(np.load(str(settings.mlPath) + "/indices.npy")))
@@ -42,13 +50,15 @@ def analyze_classification(settings):
     #true_positions_array = np.array(np.load(str(newest_directory) + "/true_positions.npy"))
 
     # grab relevent parameters from hy file and only keep the values corresponding to those in the test set
-    hy = h5py.File(settings.inputPath+"/digi_combine.hy", "r")
+    hy = h5py.File(settings.inputPath+"/multi_combine.hy", "r")
     print(hy["labels"].shape)
     angles = np.array(hy['angles'])[idx].squeeze() 
     labels = np.array(hy['labels'])[idx].squeeze() 
     veto = np.array(hy['veto'])[idx].squeeze()
     print(f"OG labels: {labels_test} ")
     energies = np.array(hy['energies'])[idx].squeeze()
+    #Stopping muons
+    labels[labels==-1] =0
     print(f"new labels: {labels}")
     positions = np.array(hy['positions'])[idx].squeeze()
     #positions=true_positions_array.squeeze()
@@ -106,20 +116,21 @@ def analyze_classification(settings):
         print("Running fiTQun")
         do_fitqun=True
         fitqun_discr, fitqun_pi_discr, fitqun_labels, fitqun_mom, fitqun_hash = read_fitqun_file(str(settings.fitqunPath) + "/fitqun_combine.hy", plotting=False, regression=False)
-        print(f'len idx: {len(idx)}, len fitqun: {len(fitqun_discr)}')
         fitqun_idx = np.array(range(len(fitqun_discr)))
         fitqun_hash = np.array(fitqun_hash)[fitqun_idx].squeeze()
         fitqun_discr = fitqun_discr[fitqun_idx].squeeze() 
         if int(settings.bkgLabels)==2:
             fitqun_pi_discr = fitqun_pi_discr[fitqun_idx].squeeze() 
+        print(f'len idx: {len(idx)}, len fitqun: {len(fitqun_hash)}')
         fitqun_labels = fitqun_labels[fitqun_idx].squeeze() 
         fitqun_mom = fitqun_mom[fitqun_idx].squeeze() 
+        print(fitqun_labels)
         fitqun_energy = math.energy_from_momentum(fitqun_mom, fitqun_labels)
         fitqun_cheThr = list(map(get_cherenkov_threshold, fitqun_labels))
         fitqun_visible_energy = fitqun_energy - fitqun_cheThr
 
         #Get the ids that are in both ML and fitqun samples
-        intersect, comm1, comm2 = np.intersect1d(fitqun_hash, ml_hash, assume_unique=True, return_indices=True)
+        intersect, comm1, comm2 = np.intersect1d(fitqun_hash, ml_hash, assume_unique=False, return_indices=True)
         print(f'intersect: {intersect.shape}, comm1: {comm1.shape}, comm2: {comm2.shape}')
         print(len(comm1))
         print(len(comm2))
@@ -130,6 +141,8 @@ def analyze_classification(settings):
         fitqun_az = (angles[:,1]*180/np.pi)[comm2]
         fitqun_polar = np.cos(angles[:,0])[comm2] 
         fitqun_towall = towall[comm2]
+        fitqun_nhits = nhits[comm2]
+        print(f"fitqun_discr len: {len(fitqun_discr)}, comm1 len: {np.amax(comm1)}")
         fitqun_discr = fitqun_discr[comm1]
         fitqun_pi_discr = fitqun_pi_discr[comm1]
         fitqun_labels = fitqun_labels[comm1]
@@ -196,7 +209,7 @@ def analyze_classification(settings):
     # apply cuts, as of right now it should remove any events with zero pmt hits (no veto cut)
     nhit_cut = nhits > 200 #25
     towall_cut = towall > 150
-    ve_cut = ml_visible_energy < 1000
+    ve_cut = ((ml_visible_energy < 1000) & (ml_visible_energy > 30))
     # veto_cut = (veto == 0)
     if int(settings.signalLabels) == 0:
         hy_electrons = (labels == 0)
@@ -245,11 +258,11 @@ def analyze_classification(settings):
             fitqun_hy_muons = (fitqun_labels == 2)
         elif int(settings.signalLabels) == 1:
             fitqun_hy_muons = (fitqun_labels == 0)
-        fitqun_basic_cuts = ((fitqun_hy_electrons | fitqun_hy_muons) & (fitqun_towall > 100) & (fitqun_visible_energy < 1200) )
+        fitqun_basic_cuts = ((fitqun_hy_electrons | fitqun_hy_muons) & (fitqun_towall > 150) & (fitqun_visible_energy > 30) & (fitqun_visible_energy < 1000)  & (fitqun_nhits > 200))
         fitqun_mom_binning = get_binning(fitqun_mom, 11, minimum=0., maximum=1000)
         fitqun_ve_binning = get_binning(fitqun_visible_energy, 11, minimum=0., maximum=1000)
         fitqun_tc_binning = get_binning(fitqun_total_charge, 50, minimum=0, maximum=10000)
-        fitqun_towall_binning = get_binning(fitqun_towall, 30, minimum=0, maximum=3000)
+        fitqun_towall_binning = get_binning(fitqun_towall, 57, minimum=150, maximum=3000)
         fitqun_az_binning = get_binning(fitqun_az, 10, minimum=-180, maximum=180)
         fitqun_polar_binning = get_binning(fitqun_polar, 10, minimum=-1, maximum=1)
         fitqun_run_result = [WatChMaLClassification(stride1, 'test', fitqun_labels, fitqun_idx, fitqun_basic_cuts, color="blue", linestyle='-')]
@@ -259,6 +272,7 @@ def analyze_classification(settings):
         fitqun_pi_run_result = [WatChMaLClassification(stride1, 'ML', fitqun_labels, fitqun_idx, fitqun_basic_cuts, color="blue", linestyle='-')]
         (fitqun_pi_run_result[0]).selection = fitqun_basic_cuts
         fitqun_pi_run_result[0].cut = fitqun_pi_discr.astype(bool)
+        print(f"FITQUN DISCRIMINANT: total correctly labelled fitqun pi: {np.abs(np.sum(fitqun_pi_discr[fitqun_labels==0]))}, total fq pi: {len(fitqun_pi_discr[fitqun_labels==0])}")
 
     if True:
         #For electron/muon
@@ -267,7 +281,7 @@ def analyze_classification(settings):
             if int(settings.signalLabels) == 0:
                 cut_pi_discr = fitqun_pi_discr[fitqun_basic_cuts]
                 fitqun_mu_eff = np.abs(np.sum(cut_pi_discr[fitqun_labels[fitqun_basic_cuts] == 0]))/len(cut_pi_discr[fitqun_labels[fitqun_basic_cuts]==0])
-                fitqun_bkg_rej = 1/(1-np.abs(np.sum(cut_pi_discr[fitqun_labels[fitqun_basic_cuts] == 2]-1))/len(cut_pi_discr[fitqun_labels[fitqun_basic_cuts]==2]))
+                fitqun_bkg_rej = 1/(np.abs(np.sum(cut_pi_discr[fitqun_labels[fitqun_basic_cuts] == 2]))/len(cut_pi_discr[fitqun_labels[fitqun_basic_cuts]==2]))
             elif int(settings.signalLabels) == 1:
                 cut_pi_discr = fitqun_discr[fitqun_basic_cuts]
                 fitqun_mu_eff = np.abs(np.sum(cut_pi_discr[fitqun_labels[fitqun_basic_cuts] == 1]))/len(cut_pi_discr[fitqun_labels[fitqun_basic_cuts]==1])
@@ -281,6 +295,9 @@ def analyze_classification(settings):
         #fitqun_bkg_rej = np.abs(np.sum(cut_pi_discr[fitqun_labels[fitqun_basic_cuts] == 2]-1))/len(cut_pi_discr[fitqun_labels[fitqun_basic_cuts]==2])
         if settings.doFiTQun:
             print(f"fiTQun signal efficiency: {fitqun_mu_eff}, fiTQun bkg rejection: {fitqun_bkg_rej}")
+        else:
+            fitqun_mu_eff = 0.5
+            fitqun_bkg_ref = 0
         
         if int(settings.signalLabels) == 0:
             print(f"DISCRIMINATOR: {run_result[0].discriminator(0,2)}")
@@ -318,11 +335,11 @@ def analyze_classification(settings):
     e_dwall_fig, dwall_ax = plot_efficiency_profile(run_result, dwall_binning, select_labels=e_label, x_label="Distance from Detector Wall [cm]", y_label="Muon Signal PID Efficiency [%]", errors=True, x_errors=False, label=label)
     e_towall_fig, towall_ax_e = plot_efficiency_profile(run_result, towall_binning, select_labels=e_label, x_label="Distance to Wall Along Particle Direction [cm]  ", y_label="Muon Signal PID Efficiency [%]", errors=True, x_errors=False, label=label)
     if do_fitqun or settings.getfiTQunTruth:
-        e_mom_fig_fitqun, mom_ax_fitqun_e = plot_efficiency_profile(fitqun_pi_run_result, fitqun_mom_binning, select_labels=e_label, x_label="fiTQun e Momentum [MeV]", y_label="fiTQun Electron Signal PID Efficiency [%]", errors=True, x_errors=False, label='fitqun'+label)
         e_ve_fig_fitqun, ve_ax_fitqun_e = plot_efficiency_profile(fitqun_pi_run_result, fitqun_ve_binning, select_labels=e_label, x_label="fiTQun Visible energy [MeV]", y_label="fiTQun Electron Signal PID Efficiency [%]", errors=True, x_errors=False, label='fitqun'+label)
         #e_tc_fig_fitqun, tc_ax_fitqun_e = plot_efficiency_profile(fitqun_pi_run_result, fitqun_tc_binning, select_labels=e_label, x_label="fiTQun Total Charge", y_label="fiTQun Electron Signal PID Efficiency [%]", errors=True, x_errors=False, label='fitqun'+label)
         e_towall_fig_fitqun, towall_ax_fitqun_e = plot_efficiency_profile(fitqun_pi_run_result, fitqun_towall_binning, select_labels=e_label, x_label="Truth toWall [cm]", y_label="fiTQun Electron Signal PID Efficiency [%]", errors=True, x_errors=False, label='fitqun'+label)
-        #e_az_fig_fitqun, az_ax_fitqun_e = plot_efficiency_profile(fitqun_pi_run_result, fitqun_az_binning, select_labels=e_label, x_label="Truth Azimuth [deg]", y_label="fiTQun Electron Signal PID Efficiency [%]", errors=True, x_errors=False, label='fitqun'+label)
+        e_az_fig_fitqun, az_ax_fitqun_e = plot_efficiency_profile(fitqun_pi_run_result, fitqun_az_binning, select_labels=e_label, x_label="Truth Azimuth [deg]", y_label="fiTQun Electron Signal PID Efficiency [%]", errors=True, x_errors=False, label='fitqun'+label)
+        e_mom_fig_fitqun, mom_ax_fitqun_e = plot_efficiency_profile(fitqun_pi_run_result, fitqun_mom_binning, select_labels=e_label, x_label="fiTQun e Momentum [MeV]", y_label="fiTQun Electron Signal PID Efficiency [%]", errors=True, x_errors=False, label='fitqun'+label)
 
     # plot signal efficiency against true momentum, dwall, towall, zenith, azimuth
     mu_polar_fig, polar_ax_mu = plot_efficiency_profile(run_result, polar_binning, select_labels=mu_label, x_label="Cosine of Zenith", y_label="Pi+ Background Miss-PID [%]", errors=True, x_errors=False, label=label)
@@ -333,15 +350,17 @@ def analyze_classification(settings):
     mu_towall_fig, towall_ax_mu = plot_efficiency_profile(run_result, towall_binning, select_labels=mu_label, x_label="Distance to Wall Along Particle Direction [cm]  ", y_label="Pi+ Background Miss-PID [%]", errors=True, x_errors=False, label=label)
     mu_dwall_fig, dwall_ax = plot_efficiency_profile(run_result, dwall_binning, select_labels=mu_label, x_label="Distance from Detector Wall [cm]", y_label="Pi+ Background Miss-PID [%]", errors=True, x_errors=False, label=label)
     if do_fitqun or settings.getfiTQunTruth:
-        mu_mom_fig_fitqun, mom_ax_fitqun_mu = plot_efficiency_profile(fitqun_pi_run_result, fitqun_mom_binning, select_labels=mu_label, x_label="fiTQun e Momentum", y_label="fiTQun Pi+ Background Miss-PID [%]", errors=True, x_errors=False, label=label)
         mu_ve_fig_fitqun, ve_ax_fitqun_mu = plot_efficiency_profile(fitqun_pi_run_result, fitqun_ve_binning, select_labels=mu_label, x_label="fiTQun Visible Energy [MeV]", y_label="fiTQun Muon Background Miss-PID [%]", errors=True, x_errors=False, label=label)
         #mu_tc_fig_fitqun, tc_ax_fitqun_mu = plot_efficiency_profile(fitqun_pi_run_result, fitqun_tc_binning, select_labels=mu_label, x_label="fiTQun Total Charge", y_label="fiTQun Muon Background Miss-PID [%]", errors=True, x_errors=False, label=label)
         mu_towall_fig_fitqun, towall_ax_fitqun_mu = plot_efficiency_profile(fitqun_pi_run_result, fitqun_towall_binning, select_labels=mu_label, x_label="Towall [cm]", y_label="fiTQun Muon Background Miss-PID [%]", errors=True, x_errors=False, label=label)
-        #mu_az_fig_fitqun, az_ax_fitqun_mu = plot_efficiency_profile(fitqun_pi_run_result, fitqun_az_binning, select_labels=mu_label, x_label="Towall [cm]", y_label="fiTQun Muon Background Miss-PID [%]", errors=True, x_errors=False, label=label)
+        mu_az_fig_fitqun, az_ax_fitqun_mu = plot_efficiency_profile(fitqun_pi_run_result, fitqun_az_binning, select_labels=mu_label, x_label="Towall [cm]", y_label="fiTQun Muon Background Miss-PID [%]", errors=True, x_errors=False, label=label)
+        mu_mom_fig_fitqun, mom_ax_fitqun_mu = plot_efficiency_profile(fitqun_pi_run_result, fitqun_mom_binning, select_labels=mu_label, x_label="fiTQun e Momentum", y_label="fiTQun Pi+ Background Miss-PID [%]", errors=True, x_errors=False, label=label)
 
     # save plots of effiency as a function of specific parameters
     e_polar_fig.savefig(settings.outputPlotPath + 'e_polar_efficiency.png', format='png')
     e_az_fig.savefig(settings.outputPlotPath + 'e_azimuthal_efficiency.png', format='png')
+    if do_fitqun or settings.getfiTQunTruth:
+        e_az_fig_fitqun.savefig(settings.outputPlotPath + 'fitqun_e_az_efficiency.png', format='png')
     e_mom_fig.savefig(settings.outputPlotPath + 'e_momentum_efficiency.png', format='png')
     e_ve_fig.savefig(settings.outputPlotPath + 'e_ve_efficiency.png', format='png')
     e_tc_fig.savefig(settings.outputPlotPath + 'e_tc_efficiency.png', format='png')
@@ -352,6 +371,8 @@ def analyze_classification(settings):
 
     mu_polar_fig.savefig(settings.outputPlotPath + 'mu_polar_efficiency.png', format='png')
     mu_az_fig.savefig(settings.outputPlotPath + 'mu_azimuthal_efficiency.png', format='png')
+    if do_fitqun or settings.getfiTQunTruth:
+        mu_az_fig_fitqun.savefig(settings.outputPlotPath + 'fitqun_mu_az_efficiency.png', format='png')
     mu_mom_fig.savefig(settings.outputPlotPath + 'mu_momentum_efficiency.png', format='png')
     mu_ve_fig.savefig(settings.outputPlotPath + 'mu_ve_efficiency.png', format='png')
     if do_fitqun or settings.getfiTQunTruth:
@@ -361,10 +382,10 @@ def analyze_classification(settings):
 
     if do_fitqun or settings.getfiTQunTruth:
         plot_fitqun_comparison(settings.outputPlotPath, mom_ax_e, mom_ax_fitqun_e, mom_ax_mu, mom_ax_fitqun_mu, 'mom_combine', 'Truth Momentum [MeV]')
-        plot_fitqun_comparison(settings.outputPlotPath, towall_ax_e, towall_ax_fitqun_e, towall_ax_mu, towall_ax_fitqun_mu, 'towall_combine', 'Towall [cm]')
         plot_fitqun_comparison(settings.outputPlotPath, ve_ax_e, ve_ax_fitqun_e, ve_ax_mu, ve_ax_fitqun_mu, 've_combine', 'Truth Visible Energy [MeV]')
+        plot_fitqun_comparison(settings.outputPlotPath, towall_ax_e, towall_ax_fitqun_e, towall_ax_mu, towall_ax_fitqun_mu, 'towall_combine', 'Towall [cm]')
+        plot_fitqun_comparison(settings.outputPlotPath, az_ax_e, az_ax_fitqun_e, az_ax_mu, az_ax_fitqun_mu, 'az_combine', 'Truth Azimuth [deg]')
         #plot_fitqun_comparison(settings.outputPlotPath, tc_ax_e, tc_ax_fitqun_e, tc_ax_mu, tc_ax_fitqun_mu, 'tc_combine', 'Total Charge')
-        #plot_fitqun_comparison(plot_output, az_ax_e, az_ax_fitqun_e, az_ax_mu, az_ax_fitqun_mu, 'az_combine', 'Truth Azimuth [deg]')
 
 
 

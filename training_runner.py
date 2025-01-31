@@ -189,7 +189,7 @@ def end_training(settings, variable_list=[], variables=[]):
 #    compare_outputs(args.comparisonFolder)
 
 if args.doIndices:
-    make_split_file(args.indicesInput, train_val_test_split=[0.05,0.05], output_path=args.indicesOutputPath, nfolds=args.numFolds, seed=0, stopMu=False, fuly_contaiend=True)
+    make_split_file(args.indicesInput, train_val_test_split=[0.05,0.05], output_path=args.indicesOutputPath, nfolds=args.numFolds, seed=0, stopMu=True, fully_contained=False, mcData=True, testOnly=False)
 
 #settings = utils()
 #kernel_size = settings.kernel

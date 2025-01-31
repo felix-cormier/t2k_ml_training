@@ -12,6 +12,7 @@ from WatChMaL.analysis.utils.fitqun import read_fitqun_file, make_fitqunlike_dis
 import WatChMaL.analysis.utils.math as math
 
 import matplotlib
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 from matplotlib.offsetbox import AnchoredText
 
@@ -56,15 +57,45 @@ def un_normalize(data, norm_min=-1, x_bounds=(-1600,1600), y_bounds=(-1600,1600)
         
     return data
 
+def regression_analysis_output(true, pred, dir=None, target=None, axis="Global", extra_string="", save_plots=False, bins_min=None, bins_max=None, bins_num=None):
+
+    bin_dict = {}
+    pred_dict = {}
+    pred_error_dict = {}
+    true_dict = {}
+    true_error_dict = {}
+
+    pred_hist_noDensity, pred_bins_noDensity = np.histogram(pred, bins=bins_num, range=[bins_min, bins_max])
+    true_hist_noDensity, true_bins_noDensity = np.histogram(true, bins=bins_num, range=[bins_min, bins_max])
+
+    pred_hist, pred_bins = np.histogram(pred, bins=bins_num, range=[bins_min, bins_max], density=True)
+    true_hist, true_bins = np.histogram(true, bins=bins_num, range=[bins_min, bins_max], density=True)
+    
+    num_pred_events = np.sum(pred_hist_noDensity)
+    num_true_events = np.sum(true_hist_noDensity)
+
+    sigma_pred = np.sqrt(pred_hist_noDensity)
+    sigma_true = np.sqrt(true_hist_noDensity)
+
+    num_pred_events_density = np.sum(pred_hist) 
+    num_true_events_density = np.sum(true_hist) 
+
+    sigma_pred = sigma_pred*(num_pred_events_density/num_pred_events)
+    sigma_true = sigma_true*(num_true_events_density/num_true_events)
+
+    bin_dict[axis] = (pred_bins[:-1] + pred_bins[1:]) / 2
+    pred_dict[axis] = pred_hist
+    pred_error_dict[axis] = sigma_pred
+    true_dict[axis] = true_hist
+    true_error_dict[axis] = sigma_true
+    
+
+    return bin_dict, pred_dict, pred_error_dict, true_dict, true_error_dict
 
 
 
-def regression_analysis_perVar(from_path=True, dirpath='outputs', combine=True, true=None, pred=None, dir = None, variable = None, target = 'positions', extra_string = "", save_plots=False):
+def regression_analysis_perVar(from_path=True, dirpath='outputs', combine=True, true=None, pred=None, dir = None, variable = None, target = 'positions', extra_string = "", save_plots=False, bins_min=None, bins_max=None, bins_num=None):
 
-    var_max = np.amax(variable)
-    old_var_max = np.amax(variable)
-    var_min = np.amin(variable)
-    old_var_min = np.amin(variable)
 
     bin_dict = {}
     quant_dict = {}
@@ -72,36 +103,55 @@ def regression_analysis_perVar(from_path=True, dirpath='outputs', combine=True, 
     mu_dict = {}
     mu_error_dict = {}
 
-    divisor = 1
-    if var_max - var_min <= 100:
-        divisor=10
-    if var_max - var_min > 100:
-        divisor=50
-        var_min=100
-        var_max=1000
-        if var_min-divisor < 0:
-            var_min=0
-            if var_max > 2000:
+    if bins_min is not None and bins_max is not None and bins_num is not None:
+        var_min=bins_min
+        var_max=bins_max
+        divisor=(float(bins_max)-float(bins_min))/float(bins_num)
+    else:
+        var_max = np.amax(variable)
+        old_var_max = np.amax(variable)
+        var_min = np.amin(variable)
+        old_var_min = np.amin(variable)
+
+
+        divisor = 1
+        if var_max - var_min <= 100:
+            divisor=10
+        if var_max - var_min > 100:
+            divisor=50
+            var_min=100
+            var_max=1000
+            if var_min-divisor < 0:
+                var_min=0
+                if var_max > 2000:
+                    divisor=200
+                    var_min=200
+            #Round max to nearest 100
+            var_max = float(ceil((var_max-divisor)/100.0))*100.
+            if var_max > 4500:
                 divisor=200
+                var_max=4500
                 var_min=200
-        #Round max to nearest 100
-        var_max = float(ceil((var_max-divisor)/100.0))*100.
-        if var_max > 4500:
-            divisor=200
-            var_max=4500
-            var_min=200
-    
-    var_bins = np.linspace(var_min,var_max, num=int((var_max-var_min)/divisor)+1)
-    #var_min=200
-    if len(var_bins) > 10 and old_var_max > 1200:
-        if old_var_min > 100:
-            divisor=100
-            var_min=350
-            var_max=2550
-        else:
-            divisor=100
-            var_min=0
-            var_max=800
+        
+        var_bins = np.linspace(var_min,var_max, num=int((var_max-var_min)/divisor)+1)
+        #var_min=200
+        if len(var_bins) > 10 and old_var_max > 1200:
+            if old_var_min > 100:
+                divisor=300
+                var_min=400
+                var_max=2500
+            if old_var_min < 0:
+                divisor=100
+                var_min=-1810
+                var_max=1810
+            elif old_var_max < 1900:
+                divisor=100
+                var_min=0
+                var_max=1600
+            else:
+                divisor = 100
+                var_min=150
+                var_max=1950
     print(f"var max: {var_max}, var min : {var_min}, divisor: {divisor}")
     var_bins = np.linspace(var_min,var_max, num=int((var_max-var_min)/divisor)+1)
     #print(f"var min: {var_min}, var max: {var_max}, var num: {int((var_max-var_min)/divisor)+1}, divisor: {divisor}")
@@ -117,7 +167,7 @@ def regression_analysis_perVar(from_path=True, dirpath='outputs', combine=True, 
         temp_pred = pred[(variable > var_bins[i]) & (variable < var_bins[i+1])]
         temp_true = true[(variable > var_bins[i]) & (variable < var_bins[i+1])]
         temp_bin = var_bins[i]+(var_bins[i+1]-var_bins[i])/2
-        axes, temp_quantile, temp_quantile_error, temp_mu, temp_mu_error = regression_analysis(from_path=from_path, dirpath=dirpath, combine=combine, true=temp_true, pred=temp_pred, dir=temp_dir, target = target, extra_string = extra_string, save_plots=save_plots)
+        axes, temp_quantile, temp_quantile_error, temp_mu, temp_mu_error = regression_analysis(from_path=from_path, dirpath=dirpath, combine=combine, true=temp_true, pred=temp_pred, dir=temp_dir, target = target, extra_string = extra_string, save_plots=save_plots, debug_string=str(i))
         for i, axis in enumerate(axes):
             if axis in quant_dict:
                 bin_dict[axis].append(temp_bin) 
@@ -155,7 +205,7 @@ def regression_analysis_perVar(from_path=True, dirpath='outputs', combine=True, 
 
 
 
-def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=None, pred=None, dir=None, target = 'directions', extra_string = "", save_plots=False, plot_path='outputs/'):
+def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=None, pred=None, dir=None, target = 'directions', extra_string = "", save_plots=False, plot_path='outputs/', debug_string=None, analysis_var_names=None, analysis_vars=None):
      '''
      saves 2 plots for each of the 3 axes (x,y,z):
      1) scatter plot of predicted vs true position
@@ -393,11 +443,33 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
                 residuals = true[:,i] - pred[:,i] 
              cut = 500
              if "momentum" in target or "energies" in target or "momenta" in target:
-                 cut = 100
+                 cut = 2
              residuals_cut = [] 
              for r in range(len(residuals)):
                  if -cut < residuals[r] <  cut:
                      residuals_cut.append(residuals[r])
+
+             analysis_bias_bins = [-1,-0.3, -0.05,-0.01,-0.005, 0., 0.005, 0.01, 0.02, 0.03, 0.05,1]
+             if False and (analysis_var_names is not None) and (analysis_vars is not None):
+                    for name, var in zip(analysis_var_names, analysis_vars):
+                        for j, bin in enumerate(analysis_bias_bins):
+                            if j < len(analysis_bias_bins)-1:
+                                print(j)
+                                temp_var = np.array(var)[(np.array(residuals) > analysis_bias_bins[j]) & (np.array(residuals) < analysis_bias_bins[j+1])]
+                                if "z" in name:
+                                    plt.hist(temp_var, bins=100, alpha=0.7, range=[1800,1810])
+                                else:
+                                    plt.hist(temp_var, bins=100, alpha=0.7)
+                                plt.xlabel(name)
+                                plt.ylabel("# Events")
+                                if "momenta" in target:
+                                    plt.text(0.6,0.7,f"{analysis_bias_bins[j]*100} < Residual [%] < {analysis_bias_bins[j+1]*100}")
+                                else: 
+                                    plt.text(0.6,0.7,f"{analysis_bias_bins[j]} < Residual < {analysis_bias_bins[j+1]}")
+                                plt.savefig(f"{plot_path}/bias_study_pred__var{name}_{target}_{vertex_axis[i]}_{extra_string}_biasMin{analysis_bias_bins[j]}_biasMax{analysis_bias_bins[j+1]}.png")
+                                plt.clf()
+
+
                      
              #numerical_std = np.std(residuals_cut) 
              #Is actually median
@@ -424,14 +496,17 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
              p0 = [40, 0, 70] 
              if "directions" in target or "momentum" in target or "energies" in target or "momenta" in target:
                  if double_gaussian:
-                    p0 = [1000, 100, 0.002, 0.002, 0.005, 0.1]
+                    p0 = [100, 100, 0.002, 0.002, 0.005, 0.1]
                  else:
-                    p0 = [1000, 0.002, 0.005]
+                    p0 = [10, 0.002, 0.005]
 
              dec_to_round = 5
 
-             if double_gaussian:
-                popt, pcov = curve_fit(double_gaussian, (xhist[1:]+xhist[:-1])/2, yhist, bounds=(-np.inf, np.inf), p0=p0, maxfev=10000)    
+             sigma = np.sqrt(yhist)
+             sigma[sigma==0] = 1
+
+             if double_gaussian and ("momentum" in target or "momenta" in target or "energies" in target or ("positions" in target and "Longitudinal" in target)):
+                popt, pcov = curve_fit(double_gaussian_fn, (xhist[1:]+xhist[:-1])/2, yhist, sigma=sigma, bounds=(-np.inf, np.inf), p0=p0, maxfev=10000, absolute_sigma=True)    
                 perr = np.sqrt(np.diag(pcov))
                 a0 = popt[0]
                 a1 = popt[1]
@@ -447,10 +522,10 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
 
                 print(f"Gaussin ao: {a0}, mu0: {mu0}, std0: {std0}, a1: {a1}, mu1: {mu1}, std1: {std1}")
 
-                plt.plot(line, double_gaussian(line, *popt), alpha=1, color='black', label='guassian fit')
+                plt.plot(line, double_gaussian_fn(line, *popt), alpha=1, color='black', label='guassian fit')
 
-             else:
-                popt, pcov = curve_fit(gaussian, (xhist[1:]+xhist[:-1])/2, yhist, bounds=(-np.inf, np.inf), p0=p0, maxfev=10000)    
+             elif ("momentum" in target or "momenta" in target or "energies" in target or ("positions" in target and "Longitudinal" in target)):
+                popt, pcov = curve_fit(gaussian_fn, (xhist[1:]+xhist[:-1])/2, yhist, sigma = sigma, bounds=(-np.inf, np.inf), p0=p0, maxfev=10000, absolute_sigma=True)    
                 perr = np.sqrt(np.diag(pcov))
                 a0 = popt[0]
                 mu0 = round(popt[1], dec_to_round)
@@ -463,7 +538,7 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
                 if std0_uncert < 0.000000001:
                     std0_uncert = 0.000000001
 
-                plt.plot(line, gaussian(line, *popt), alpha=1, color='black', label='guassian fit')
+                plt.plot(line, gaussian_fn(line, *popt), alpha=1, color='black', label='guassian fit')
 
              if "momentum" in target or "momenta" in target or "energies" in target or ("positions" in target and "Longitudinal" in target):
                 numerical_median = mu0
@@ -497,6 +572,8 @@ def regression_analysis(from_path=True, dirpath='outputs', combine=True, true=No
              plt.ylim((0.1, 200000))
              if save_plots:
                 plt.savefig(f"{plot_path}/pred_{target}_{vertex_axis[i]}_{extra_string}.png")
+             else:
+                plt.savefig(f"plots/debug/pred_{target}_{vertex_axis[i]}_{extra_string}_{debug_string}.png")
 
 
              residual_lst.append(residuals)
@@ -532,10 +609,10 @@ def un_normalize(data, x_bounds=(-1600,1600), y_bounds=(-1600,1600), z_bounds=(-
 
      return data
 
-def gaussian(x, a, mean, sigma):
+def gaussian_fn(x, a, mean, sigma):
      return a * np.exp(-((x - mean)**2 / (2 * sigma**2)))
 
-def double_gaussian(x, a0, a1, mean0, mean1, sigma0, sigma1):
+def double_gaussian_fn(x, a0, a1, mean0, mean1, sigma0, sigma1):
      return (a0 * np.exp(-((x - mean0)**2 / (2 * sigma0**2)))) + (a1 * np.exp(-((x - mean1)**2 / (2 * sigma1**2))))
 
 

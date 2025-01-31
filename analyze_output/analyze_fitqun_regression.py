@@ -18,7 +18,7 @@ from tqdm import tqdm
 
 import WatChMaL.analysis.utils.math as math
 
-from plotting import regression_analysis, regression_analysis_perVar
+from plotting import regression_analysis, regression_analysis_perVar, regression_analysis_output
 from analyze_output.utils.math import get_cherenkov_threshold
 
 from matplotlib.ticker import NullFormatter
@@ -90,7 +90,7 @@ def analyze_fitqun_regression(settings):
      if settings.getfiTQunTruth:
          (_, labels, _, fitqun_hash), (mu_1rpos, e_1rpos, pi_1rpos, mu_1rdir, e_1rdir, pi_1rdir, mu_1rmom, e_1rmom, pi_1rmom), fq_truth, nhits = fq.read_fitqun_file(settings.fitqunPath+'/fitqun_combine.hy', regression=True, fq_truth=settings.getfiTQunTruth)
      else:
-         (_, labels, _, fitqun_hash), (mu_1rpos, e_1rpos, pi_1rpos, mu_1rdir, e_1rdir, pi_1rdir, mu_1rmom, e_1rmom, pi_1rmom), fq_truth = fq.read_fitqun_file(settings.fitqunPath+'/fitqun_combine.hy', regression=True, fq_truth=settings.getfiTQunTruth)
+         (_, labels, _, fitqun_hash), (mu_1rpos, e_1rpos, pi_1rpos, mu_1rdir, e_1rdir, pi_1rdir, mu_1rmom, e_1rmom, pi_1rmom), fq_truth, nhits, qtot = fq.read_fitqun_file(settings.fitqunPath+'/fitqun_combine.hy', regression=True, fq_truth=settings.getfiTQunTruth)
 
      # read in the indices file
      idx = np.array(sorted(np.load(settings.mlPath + "/indices.npy")))
@@ -147,6 +147,8 @@ def analyze_fitqun_regression(settings):
 
      angles = math.angles_from_direction(directions)
      towall = math.towall(positions, angles, tank_axis = 2)
+     zenith = np.cos(angles[:,0]) 
+     azimuth = angles[:,1]*180/np.pi 
      dwall = math.dwall(positions, tank_axis = 2)
 
      ranges = range_from_energy(energies, labels)
@@ -210,6 +212,8 @@ def analyze_fitqun_regression(settings):
         momenta = momenta[comm2]
         energies = energies[comm2]
         towall = towall[comm2]
+        zenith = zenith[comm2]
+        azimuth = azimuth[comm2]
         dwall = dwall[comm2]
         nhits = nhits[comm2]
         is_fully_contained = is_fully_contained[comm2]
@@ -231,12 +235,15 @@ def analyze_fitqun_regression(settings):
         energies = energies[towall_nan].squeeze()
         angles = angles[towall_nan].squeeze()
         towall = towall[towall_nan].squeeze()
+        zenith = zenith[towall_nan].squeeze()
+        azimuth = azimuth[towall_nan].squeeze()
         dwall = dwall[towall_nan].squeeze()
         nhits = nhits[towall_nan].squeeze()
         is_fully_contained = is_fully_contained[towall_nan].squeeze()
      cheThr = list(map(get_cherenkov_threshold, fitqun_labels))
      visible_energy = energies - cheThr
      ve_cut = 1000
+     min_ve_cut = 30
      towall_cut = 150
 
      #positions = positions[(visible_energy< ve_cut)]
@@ -259,7 +266,7 @@ def analyze_fitqun_regression(settings):
      print(np.unique(towall > towall_cut, return_counts=True))
      print(np.unique(is_fully_contained,return_counts=True))
 
-     quality_cuts = (old_visible_energy < ve_cut) & (old_nhits > nhits_cut) & (towall > towall_cut) & (is_fully_contained)
+     quality_cuts = (old_visible_energy < ve_cut) & (old_nhits > nhits_cut) & (towall > towall_cut) & (is_fully_contained) & (old_visible_energy > min_ve_cut)
      print(np.unique(quality_cuts,return_counts=True))
 
      if "positions" in settings.target:
@@ -283,13 +290,16 @@ def analyze_fitqun_regression(settings):
 
 
      visible_energy = visible_energy[quality_cuts]
+     positions = positions[quality_cuts]
      nhits = nhits[quality_cuts]
      towall = towall[quality_cuts]
+     zenith = zenith[quality_cuts]
+     azimuth = azimuth[quality_cuts]
      dwall = dwall[quality_cuts]
 
-     true_0, pred_0, ve_0, tw_0, dw_0, nhits_0, dir_0 = [], [], [], [], [], [], []
-     true_1, pred_1, ve_1, tw_1, dw_1, nhits_1, dir_1 = [], [], [], [], [], [], []
-     true_2, pred_2, ve_2, tw_2, dw_2, nhits_2, dir_2 = [], [], [], [], [], [], []
+     true_0, pred_0, ve_0, tw_0, dw_0, nhits_0, dir_0, pos_0, zenith_0, azimuth_0 = [], [], [], [], [], [], [], [], [], []
+     true_1, pred_1, ve_1, tw_1, dw_1, nhits_1, dir_1, pos_1, zenith_1, azimuth_1 = [], [], [], [], [], [], [], [], [], []
+     true_2, pred_2, ve_2, tw_2, dw_2, nhits_2, dir_2, pos_2, zenith_2, azimuth_2 = [], [], [], [], [], [], [], [], [], []
      for i in range(len(fitqun_labels)):
          # LABEL 0 - muons  
          if fitqun_labels[i] == 0:
@@ -300,6 +310,9 @@ def analyze_fitqun_regression(settings):
              dw_0.append(dwall[i])
              nhits_0.append(nhits[i])
              dir_0.append(directions[i])
+             pos_0.append(positions[i])
+             zenith_0.append(zenith[i])
+             azimuth_0.append(azimuth[i])
 
          elif fitqun_labels[i] == 2:
              true_2.append(truth[i])
@@ -309,6 +322,9 @@ def analyze_fitqun_regression(settings):
              dw_2.append(dwall[i])
              nhits_2.append(nhits[i])
              dir_2.append(directions[i])
+             pos_2.append(positions[i])
+             zenith_2.append(zenith[i])
+             azimuth_2.append(azimuth[i])
 
          # LABEL 1 - electrons  
          else:
@@ -319,6 +335,9 @@ def analyze_fitqun_regression(settings):
              dw_1.append(dwall[i])
              nhits_1.append(nhits[i])
              dir_1.append(directions[i])
+             pos_1.append(positions[i])
+             zenith_1.append(zenith[i])
+             azimuth_1.append(azimuth[i])
 
      # convert lists to arrayss
      true_0 = np.array(true_0)
@@ -330,12 +349,21 @@ def analyze_fitqun_regression(settings):
      tw_0 = np.array(tw_0)
      tw_1 = np.array(tw_1)
      tw_2 = np.array(tw_2)
+     zenith_0 = np.array(zenith_0)
+     zenith_1 = np.array(zenith_1)
+     zenith_2 = np.array(zenith_2)
+     azimuth_0 = np.array(azimuth_0)
+     azimuth_1 = np.array(azimuth_1)
+     azimuth_2 = np.array(azimuth_2)
      dw_0 = np.array(dw_0)
      dw_1 = np.array(dw_1)
      dw_2 = np.array(dw_2)
      dir_0 = np.array(dir_0)
      dir_1 = np.array(dir_1)
      dir_2 = np.array(dir_2)
+     pos_0 = np.array(pos_0)
+     pos_1 = np.array(pos_1)
+     pos_2 = np.array(pos_2)
      print(f"FITQUN TRUTH: {true_0}")
      print(f"FITQUN PRED: {pred_0}")
      print(f"FITQUN VE: {np.array(ve_0)}")
@@ -343,42 +371,130 @@ def analyze_fitqun_regression(settings):
      #print(true_0.shape)
      single_analysis = []
      multi_analysis = {}
+     output_analysis= {}
      if settings.particleLabel==0:
         print('######## fiTQun MUON EVENTS ########')
         print(f"FITQUN TRUE: {true_0}")
         print(f"FITQUN PRED: {pred_0}")
 
-        vertex_axis, quantile_lst, quantile_error_lst, median_lst, median_error_lst = regression_analysis(from_path=False, true=true_0, pred=pred_0, dir=dir_0, target=settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=True, plot_path = settings.outputPlotPath)
+        vertex_axis, quantile_lst, quantile_error_lst, median_lst, median_error_lst = regression_analysis(from_path=False, true=true_0, pred=pred_0, dir=dir_0, target=settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=True, plot_path = settings.outputPlotPath, analysis_var_names=['towall', 've', 'z'], analysis_vars=[tw_0, ve_0, pos_0[:,2]])
         single_analysis = [vertex_axis, quantile_lst, quantile_error_lst, median_lst, median_error_lst] 
-        bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_0, pred=pred_0, dir=dir_0, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=dw_0)
-        multi_analysis['dwall'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
-        bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_0, pred=pred_0, dir=dir_0, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=tw_0)
-        multi_analysis['towall'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
-        bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_0, pred=pred_0, dir=dir_0, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=ve_0)
-        multi_analysis['ve'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+        if settings.doVarPlots:
+            if not settings.getfiTQunTruth:
+               bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_0, pred=pred_0, dir=dir_0, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=dw_0, bins_min=0, bins_max=1600, bins_num=32)
+               multi_analysis['dwall'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+            bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_0, pred=pred_0, dir=dir_0, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=tw_0, bins_min=150, bins_max=1600, bins_num=30)
+            multi_analysis['towall'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+            bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_0, pred=pred_0, dir=dir_0, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=ve_0, bins_min=0, bins_max=1000, bins_num=20)
+            multi_analysis['ve'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+            bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_0, pred=pred_0, dir=dir_0, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=pos_0[:,2], bins_min=-1810, bins_max=1810, bins_num=36)
+            multi_analysis['z'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+            bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_0, pred=pred_0, dir=dir_0, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=zenith_0, bins_min=-1, bins_max=1, bins_num=20)
+            multi_analysis['zenith'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+            bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_0, pred=pred_0, dir=dir_0, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=azimuth_0, bins_min=-180, bins_max=180, bins_num=36)
+            multi_analysis['azimuth'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+
+        dir_f = dir_0
+        tw_f = tw_0
 
      if settings.particleLabel==1:
         print('######## fiTQun ELECTRON EVENTS ########')
         #regression_analysis_perVar(from_path=False, true=true_1, pred=pred_1, target = target, extra_string="fitqun_Electrons", save_plots=False, variable=ve_1)
         vertex_axis, quantile_lst, quantile_error_lst, median_lst, median_error_lst = regression_analysis(from_path=False, true=true_1, pred=pred_1, dir=dir_1, target=settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=True, plot_path = settings.outputPlotPath)
         single_analysis = [vertex_axis, quantile_lst, quantile_error_lst, median_lst, median_error_lst] 
-        bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_1, pred=pred_1, dir=dir_1, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=dw_1)
-        multi_analysis['dwall'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
-        bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_1, pred=pred_1, dir=dir_1, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=tw_1)
-        multi_analysis['towall'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
-        bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_1, pred=pred_1, dir=dir_1, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=ve_1)
-        multi_analysis['ve'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+        if settings.doVarPlots:
+            bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_1, pred=pred_1, dir=dir_1, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=dw_1, bins_min=0, bins_max=1600, bins_num=32)
+            multi_analysis['dwall'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+            bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_1, pred=pred_1, dir=dir_1, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=tw_1, bins_min=150, bins_max=1600, bins_num=30)
+            multi_analysis['towall'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+            bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_1, pred=pred_1, dir=dir_1, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=ve_1, bins_min=0, bins_max=1000, bins_num=20)
+            multi_analysis['ve'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+            bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_1, pred=pred_1, dir=dir_1, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=pos_1[:,2], bins_min=-1810, bins_max=1810, bins_num=36)
+            multi_analysis['z'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+            bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_1, pred=pred_1, dir=dir_1, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=zenith_1, bins_min=-1, bins_max=1, bins_num=20)
+            multi_analysis['zenith'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+            bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_1, pred=pred_1, dir=dir_1, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=azimuth_1, bins_min=-180, bins_max=180, bins_num=36)
+            multi_analysis['azimuth'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+
+        dir_f = dir_1
+        tw_f = tw_1
 
      if settings.particleLabel==2:
         print('######## fiTQun PION EVENTS ########')
         #regression_analysis_perVar(from_path=False, true=true_1, pred=pred_1, target = target, extra_string="fitqun_Electrons", save_plots=False, variable=ve_1)
         vertex_axis, quantile_lst, quantile_error_lst, median_lst, median_error_lst = regression_analysis(from_path=False, true=true_2, pred=pred_2, dir=dir_2, target=settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=True, plot_path = settings.outputPlotPath)
         single_analysis = [vertex_axis, quantile_lst, quantile_error_lst, median_lst, median_error_lst] 
-        bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_2, pred=pred_2, dir=dir_2, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=dw_2)
-        multi_analysis['dwall'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
-        bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_2, pred=pred_2, dir=dir_2, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=tw_2)
-        multi_analysis['towall'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
-        bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_2, pred=pred_2, dir=dir_2, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=ve_2)
-        multi_analysis['ve'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+        if settings.doVarPlots:
+            bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_2, pred=pred_2, dir=dir_2, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=dw_2, bins_min=0, bins_max=1600, bins_num=32)
+            multi_analysis['dwall'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+            bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_2, pred=pred_2, dir=dir_2, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=tw_2, bins_min=150, bins_max=1600, bins_num=30)
+            multi_analysis['towall'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+            bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_2, pred=pred_2, dir=dir_2, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=ve_2, bins_min=0, bins_max=1000, bins_num=20)
+            multi_analysis['ve'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+            bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_2, pred=pred_2, dir=dir_2, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=pos_2[:,2], bins_min=-1810, bins_max=1810, bins_num=36)
+            multi_analysis['z'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+            bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_2, pred=pred_2, dir=dir_2, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=zenith_2, bins_min=-1, bins_max=1, bins_num=20)
+            multi_analysis['zenith'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
+            bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict = regression_analysis_perVar(from_path=False, true=true_2, pred=pred_2, dir=dir_2, target = settings.target, extra_string="fiTQun_"+settings.plotName, save_plots=False, variable=azimuth_2, bins_min=-180, bins_max=180, bins_num=36)
+            multi_analysis['azimuth'] = [bin_dict, quant_dict, quant_error_dict, mu_dict, mu_error_dict]
 
-     return single_analysis, multi_analysis
+        dir_f = dir_2
+        tw_f = tw_2
+
+     if settings.doOutputPlots:
+          target=settings.target
+          if settings.particleLabel==0:
+               truth_0=true_0
+               pred_0=pred_0
+               angles = np.column_stack((zenith_0, azimuth_0))
+          if settings.particleLabel==1:
+               truth_0=true_1
+               pred_0=pred_1
+               angles = np.column_stack((zenith_1, azimuth_1))
+          if settings.particleLabel==2:
+               truth_0=true_2
+               pred_0=pred_2
+               angles = np.column_stack((zenith_2, azimuth_2))
+          if "positions" in target:
+               #X
+               bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict = regression_analysis_output(truth_0[:,0], pred_0[:,0], dir=directions, target=target,extra_string="fiTQun_"+settings.plotName, save_plots=False, bins_min=-1650, bins_max=1650, bins_num=36)
+               output_analysis["X"] = [bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict]
+               #Y
+               bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict = regression_analysis_output(truth_0[:,1], pred_0[:,1], dir=directions, target=target,extra_string="fiTQun_"+settings.plotName, save_plots=False, bins_min=-1650, bins_max=1650, bins_num=36)
+               output_analysis["Y"] = [bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict]
+               #Z
+               bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict = regression_analysis_output(truth_0[:,2], pred_0[:,2], dir=directions, target=target,extra_string="fiTQun_"+settings.plotName, save_plots=False, bins_min=1650, bins_max=1820, bins_num=34)
+               output_analysis["Z"] = [bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict]
+               #dwall
+               bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict = regression_analysis_output(math.towall(truth_0, angles, tank_axis = 2), math.towall(pred_0, angles, tank_axis = 2), dir=directions, target=target,extra_string="fiTQun_"+settings.plotName, save_plots=False, bins_min=0, bins_max=1600, bins_num=32)
+               output_analysis["dwall"] = [bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict]
+               #towall
+               bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict = regression_analysis_output(math.dwall(truth_0, tank_axis=2), math.dwall(pred_0, tank_axis=2), dir=directions, target=target,extra_string="fiTQun_"+settings.plotName, save_plots=False, bins_min=0, bins_max=2000, bins_num=40)
+               output_analysis["towall"] = [bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict]
+          if "momenta" in target:
+               bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict = regression_analysis_output(truth_0, pred_0, dir=directions, target=target,extra_string="fiTQun_"+settings.plotName, save_plots=False, bins_min=30, bins_max=1000, bins_num=50)
+               output_analysis["momenta"] = [bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict]
+          if "directions" in target:
+               #X
+               bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict = regression_analysis_output(truth_0[:,0], pred_0[:,0], dir=directions, target=target,extra_string="fiTQun_"+settings.plotName, save_plots=False, bins_min=-1., bins_max=1., bins_num=40)
+               output_analysis["X"] = [bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict]
+               #Y
+               bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict = regression_analysis_output(truth_0[:,1], pred_0[:,1], dir=directions, target=target,extra_string="fiTQun_"+settings.plotName, save_plots=False, bins_min=-1., bins_max=1., bins_num=40)
+               output_analysis["Y"] = [bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict]
+               #Z
+               bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict = regression_analysis_output(truth_0[:,2], pred_0[:,2], dir=directions, target=target,extra_string="fiTQun_"+settings.plotName, save_plots=False, bins_min=-1., bins_max=1., bins_num=40)
+               output_analysis["Z"] = [bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict]
+               true_angles = math.angles_from_direction(truth_0)
+               true_zenith = np.cos(true_angles[:,0]) 
+               true_azimuth = true_angles[:,1]*180/np.pi 
+               pred_angles = math.angles_from_direction(pred_0)
+               pred_zenith = np.cos(pred_angles[:,0]) 
+               pred_azimuth = pred_angles[:,1]*180/np.pi 
+               #azimuth
+               bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict = regression_analysis_output(true_azimuth, pred_azimuth, dir=directions, target=target,extra_string="fiTQun_"+settings.plotName, save_plots=False, bins_min=-180, bins_max=180, bins_num=40)
+               output_analysis["azimuth"] = [bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict]
+               #polar
+               bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict = regression_analysis_output(true_zenith, pred_zenith, dir=directions, target=target,extra_string="fiTQun_"+settings.plotName, save_plots=False, bins_min=-1., bins_max=1., bins_num=40)
+               output_analysis["polar"] = [bin_dict, pred_dict, pred_error_dict, truth_dict, truth_error_dict]
+
+     return single_analysis, multi_analysis, output_analysis, dir_f, tw_f
