@@ -438,8 +438,9 @@ def analyze_ml_regression_dataMC(settings, total_charge_cut, nhits_cut):
         print(f"mc subevent size: {np.unique(subevents_mc['fqnse'], return_counts=True)}, subevents index: {subevents_mc['subevents_hit_index']}")
         print(f"data subevent size: {np.unique(subevents_data['fqnse'], return_counts=True)}, subevents index: {subevents_data['subevents_hit_index']}")
 
-        intersect_subpreds_mc, sub_map_mc, preds_map_mc, subevents_hash_mc, preds_hash_mc = get_inference_subevent_correspondence(subevents_mc, mc_rootfiles, mc_eventids)
-        intersect_subfq_mc, sub_map_fq_mc, fq_map_sub_mc, subevents_fq_hash_mc, fq_hash_mc = get_fitqun_correspondence(subevents_mc, fq_se_mc)
+        #Problems with MC, but can link through truth positions
+        #intersect_subpreds_mc, sub_map_mc, preds_map_mc, subevents_hash_mc, preds_hash_mc = get_inference_subevent_correspondence(subevents_mc, mc_rootfiles, mc_eventids)
+        #intersect_subfq_mc, sub_map_fq_mc, fq_map_sub_mc, subevents_fq_hash_mc, fq_hash_mc = get_fitqun_correspondence(subevents_mc, fq_se_mc)
 
         intersect_predsfq_mc, preds_map_fq_mc, fq_map_preds_mc, predsFQ_hash_mc, fqPreds_hash_mc = get_directMC_correspondence(mc_positions, fq_se_mc)
 
@@ -448,77 +449,57 @@ def analyze_ml_regression_dataMC(settings, total_charge_cut, nhits_cut):
         intersect_fqsub_data, sub_map_fq_data, fq_map_sub_data, subevents_fq_hash_data, fq_hash_data = get_fitqun_correspondence(subevents_data, fq_se_data, isData=True)
 
 
-
-        
-        #Want mapping between fq and preds
-        #print(f"SUB MAP FQ: {sub_map_fq_data}, {sub_map_fq_data.shape}, shuffle: {np.random.shuffle(sub_map_fq_mc)}, {np.array(np.random.shuffle(sub_map_fq_mc)).shape}")
-        #mc_conv = preds_map_mc
-        #data_conv = preds_map_data
-
-        #print(f"Subevents hash mc: {subevents_hash_mc.shape}, se fq hash: {subevents_fq_hash_mc.shape}")
-        
-        #subevents_to_preds_mc = subevents_hash_mc[sub_map_mc]
-        #subevents_to_fq_mc = subevents_hash_mc[sub_map_fq_mc]
-        #subevents_to_preds_data = subevents_hash_data[sub_map_data]
-        #subevents_to_fq_data = subevents_hash_data[sub_map_fq_data]
-        #mc_map_intersect, mc_map_sub, mc_map_fq = np.intersect1d(subevents_hash_mc, subevents_fq_hash_mc, return_indices=True)
-        #data_map_intersect, data_map_sub, data_map_fq = np.intersect1d(subevents_hash_data, subevents_hash_mc[], return_indices=True)
-
-        #preds_fqOrder_mc = (preds_mc[mc_conv])[mc_map_sub]
-        #preds_fqOrder_mc = preds_mc[np.isin(preds_hash_mc, intersect_subpreds_mc)]
-        #preds_fqOrder_mc = preds_fqOrder_mc[np.isin(preds_hash_mc, subevents_hash_mc)]
-        #preds_fqOrder_data = preds_data[np.isin(preds_hash_data, intersect_subpreds_data)]
-        #preds_fqOrder_data = preds_fqOrder_data[np.isin(preds_hash_data, subevents_hash_data)]
-        #preds_fqOrder_data = (preds_data[data_conv])[data_map_sub]
-
-        #print(f"fq by subevents mc: {fq_se_mc['fqnse']}, data: {fq_se_data['fqnse']}")
-        #print(f"fq by subevents mc: {fq_se_mc['fqnse']}, data: {fq_se_data['fqnse']}")
-        #print(f"fq by subevents mc: {fq_se_mc['fqipeak']}, data: {fq_se_data['fqipeak']}")
-
-        #print(f"subevents hits index data: {np.unique(np.array(fq_se_data['subevents_hit_index']), return_counts=True)}")
-        #print(f"subevents hits index mc: {np.unique(np.array(fq_se_mc['subevents_hit_index']), return_counts=True)}")
-
-        #fq_fqOrder_nse_mc = np.array(fq_se_mc['fqnse'])[np.isin(fq_hash_mc, intersect_subfq_mc)]
-        #fq_fqOrder_fqipeak_mc = np.array(fq_se_mc['fqipeak'])[np.isin(fq_hash_mc, intersect_subfq_mc)]
-        #fq_fqOrder_seHitIndex_mc = np.array(fq_se_mc['subevents_hit_index'])[np.isin(fq_hash_mc, intersect_subfq_mc)]
-
-
-        #fq_fqOrder_fqipeak_mc = fq_fqOrder_fqipeak_mc[sub_map_mc]
-        #fq_fqOrder_nse_mc = fq_fqOrder_nse_mc[sub_map_mc]
-        #fq_fqOrder_fqipeak_mc = fq_fqOrder_fqipeak_mc[sub_map_mc]
-        #fq_fqOrder_seHitIndex_mc = fq_fqOrder_seHitIndex_mc[sub_map_mc]
-        #fq_fqOrder_mc = fq_fqOrder_mc[sub_map_mc]
-        #fq_fqOrder_nse_data = np.array(fq_se_data['fqnse'])[np.isin(fq_hash_data, intersect_fqsub_data)]
-        #fq_fqOrder_fqipeak_data = np.array(fq_se_data['fqipeak'])[np.isin(fq_hash_data, intersect_fqsub_data)]
-        #fq_fqOrder_seHitIndex_data = np.array(fq_se_data['subevents_hit_index'])[np.isin(fq_hash_data, intersect_fqsub_data)]
-
-
         se_hits_index_mod_data = transform_array(np.array(fq_se_data['subevents_hit_index'])+1, np.array(fq_se_data['fq1rpos']).shape[0])#modify_array(np.array(fq_se_data['subevents_hit_index']))
+        print(f"Modded se hits data: {se_hits_index_mod_data}")
+        print(f"se hits data: {np.array(fq_se_data['subevents_hit_index'])}")
+        print(f"Diff: {np.unique(se_hits_index_mod_data - np.array(fq_se_data['subevents_hit_index']), return_counts=True)}")
+        print(f"Uniques: {np.unique(np.ediff1d(se_hits_index_mod_data), return_counts=True)}")
+        print(f"The first subevent: {np.array(fq_se_data['fq1rpos'])[0]}, second: {np.array(fq_se_data['fq1rpos'])[1]}, third: {np.array(fq_se_data['fq1rpos'])[2]}, {np.array(fq_se_data['fqipeak'])[0]}, tru position 0: {np.array(fq_se_data['root_files'][0])}, 1:{np.array(fq_se_data['root_files'][1])}, 2:{np.array(fq_se_data['root_files'])[2]}")
+        #se_hits_index_mod_data = np.array(fq_se_data['subevents_hit_index'])
         se_hits_index_mod_mc = np.array(fq_se_mc['subevents_hit_index'])#+1, np.array(fq_se_mc['fq1rpos']).shape[0]) #transform_array(np.array(fq_se_mc['subevents_hit_index']))#modify_array(np.array(fq_se_mc['subevents_hit_index']))
         fq_fqOrder_fq1rpos_data = (np.array(fq_se_data['fq1rpos'])[se_hits_index_mod_data])
         fq_fqOrder_fq1rpos_mc = (np.array(fq_se_mc['fq1rpos'])[se_hits_index_mod_mc])
         fq_fqOrder_fqipeak_data = (np.array(fq_se_data['fqipeak'])[se_hits_index_mod_data])
         fq_fqOrder_fqipeak_mc = (np.array(fq_se_mc['fqipeak'])[se_hits_index_mod_mc])
+        fq_fqOrder_fq1rt0_data = (np.array(fq_se_data['fq1rt0'])[se_hits_index_mod_data])
+        fq_fqOrder_fqipeak_mc = (np.array(fq_se_mc['fqipeak'])[se_hits_index_mod_mc])
+        fq_fqOrder_fq1rt0_mc = (np.array(fq_se_mc['fq1rt0'])[se_hits_index_mod_mc])
         fq_fqOrder_pos_mc = np.array(fq_se_mc['position']) 
         fq_fqOrder_nse_mc = np.array(fq_se_mc['fqnse']) 
         fq_fqOrder_nse_data = np.array(fq_se_data['fqnse']) 
+
+        if (se_hits_index_mod_data+1)[-1] > np.array(fq_se_mc['fq1rt0']).shape[0]: 
+            fq_fqOrder_fq1rt0_data_plusOne = (np.append(np.array(fq_se_data['fq1rt0']), np.array(fq_se_data['fq1rt0'])[-1,:,:].reshape(1,1,3),axis=0)[se_hits_index_mod_data+1])
+            fq_fqOrder_fq1rpos_data_plusOne = (np.append(np.array(fq_se_data['fq1rpos']), np.array(fq_se_data['fq1rpos'])[-1,:,:].reshape(1,3,3),axis=0)[se_hits_index_mod_data+1])
+        else:
+            fq_fqOrder_fq1rt0_data_plusOne = (np.array(fq_se_data['fq1rt0'])[se_hits_index_mod_data+1])
+            fq_fqOrder_fq1rpos_data_plusOne = (np.array(fq_se_data['fq1rpos'])[se_hits_index_mod_data+1])
+        if (se_hits_index_mod_mc+1)[-1] > np.array(fq_se_mc['fq1rt0']).shape[0]: 
+            fq_fqOrder_fq1rt0_mc_plusOne = (np.append(np.array(fq_se_mc['fq1rt0']), np.array(fq_se_mc['fq1rt0'])[-1,:,:].reshape(1,1,3),axis=0)[se_hits_index_mod_mc+1])
+            fq_fqOrder_fq1rpos_mc_plusOne = (np.append(np.array(fq_se_mc['fq1rpos']), np.array(fq_se_mc['fq1rpos'])[-1,:,:].reshape(1,3,3),axis=0)[se_hits_index_mod_mc+1])
+        else:
+            fq_fqOrder_fq1rt0_mc_plusOne = (np.array(fq_se_mc['fq1rt0'])[se_hits_index_mod_mc+1])
+            fq_fqOrder_fq1rpos_mc_plusOne = (np.array(fq_se_mc['fq1rpos'])[se_hits_index_mod_mc+1])
 
 
 
         #Align data
         preds_fqOrder_data, fq_fqOrder_fq1rpos_data = align_datasets(preds_data, fq_fqOrder_fq1rpos_data[fq_map_sub_data], preds_hash_data, subevents_hash_data[sub_map_fq_data])
-        _, se_hits_index_mod_data = align_datasets(preds_data, se_hits_index_mod_data[fq_map_sub_data], preds_hash_data, subevents_hash_data[sub_map_fq_data])
+        #_, se_hits_index_mod_data = align_datasets(preds_data, se_hits_index_mod_data[fq_map_sub_data], preds_hash_data, subevents_hash_data[sub_map_fq_data])
         _, fq_fqOrder_fqipeak_data = align_datasets(preds_data, fq_fqOrder_fqipeak_data[fq_map_sub_data], preds_hash_data, subevents_hash_data[sub_map_fq_data])
+        _, fq_fqOrder_fq1rt0_data = align_datasets(preds_data, fq_fqOrder_fq1rt0_data[fq_map_sub_data], preds_hash_data, subevents_hash_data[sub_map_fq_data])
+        _, fq_fqOrder_fq1rt0_data_plusOne = align_datasets(preds_data, fq_fqOrder_fq1rt0_data_plusOne[fq_map_sub_data], preds_hash_data, subevents_hash_data[sub_map_fq_data])
+        _, fq_fqOrder_fq1rpos_data_plusOne = align_datasets(preds_data, fq_fqOrder_fq1rpos_data_plusOne[fq_map_sub_data], preds_hash_data, subevents_hash_data[sub_map_fq_data])
         _, fq_fqOrder_nse_data = align_datasets(preds_data, fq_fqOrder_nse_data[fq_map_sub_data], preds_hash_data, subevents_hash_data[sub_map_fq_data])
-        #Align MC
-        #preds_fqOrder_mc, fq_fqOrder_fq1rpos_mc = align_datasets(preds_mc, fq_fqOrder_fq1rpos_mc[fq_map_sub_mc], preds_hash_mc, subevents_hash_mc[sub_map_fq_mc])
-        #pos_fqOrder_mc, fq_fqOrder_pos_mc = align_datasets(mc_positions, fq_fqOrder_pos_mc[fq_map_sub_mc], preds_hash_mc, subevents_hash_mc[sub_map_fq_mc])
-        #hash_fqOrder_mc, sub_fqOrder_hash_mc = align_datasets(preds_hash_mc, subevents_hash_mc[sub_map_fq_mc], preds_hash_mc, subevents_hash_mc[sub_map_fq_mc])
 
+        #Align MC
         preds_fqOrder_mc = preds_mc[preds_map_fq_mc]
         fq_fqOrder_fq1rpos_mc = fq_fqOrder_fq1rpos_mc[fq_map_preds_mc]
         fq_fqOrder_fqipeak_mc = fq_fqOrder_fqipeak_mc[fq_map_preds_mc]
-        se_hits_index_mod_mc = se_hits_index_mod_mc[fq_map_preds_mc]
+        fq_fqOrder_fq1rt0_mc = fq_fqOrder_fq1rt0_mc[fq_map_preds_mc]
+        fq_fqOrder_fq1rt0_mc_plusOne = fq_fqOrder_fq1rt0_mc_plusOne[fq_map_preds_mc]
+        fq_fqOrder_fq1rpos_mc_plusOne = fq_fqOrder_fq1rpos_mc_plusOne[fq_map_preds_mc]
+        #se_hits_index_mod_mc = se_hits_index_mod_mc[fq_map_preds_mc]
 
         pos_fqOrder_mc =mc_positions[preds_map_fq_mc]
         fq_fqOrder_pos_mc = fq_fqOrder_pos_mc[fq_map_preds_mc]
@@ -556,7 +537,7 @@ def analyze_ml_regression_dataMC(settings, total_charge_cut, nhits_cut):
         print(f"Difference between mc ML and fiTQun x position: {mc_predsFQ_diff}")
 
         if data_predsFQ_diff > 50 or mc_predsFQ_diff > 50:
-            print(f"WARNING, Data ({data_predsFQ_diff}) or fiTQun ({mc_predsFQ_diff}) is > 50, Exiting...")
+            print(f"WARNING, Data ({data_predsFQ_diff}) or MC ({mc_predsFQ_diff}) average difference between ML and fiTQun position prediction is > 50, Exiting...")
             return 0
         
         #Cuts like fiTQun data/MC paper
@@ -572,8 +553,8 @@ def analyze_ml_regression_dataMC(settings, total_charge_cut, nhits_cut):
         #Cut 2, decay electron is not in gate
 
         #Find all events that have more than 1 sub-event, convert to int
-        gt_1se_mc = fq_fqOrder_nse_mc ==2
-        gt_1se_data = fq_fqOrder_nse_data ==2
+        gt_1se_mc = np.array(fq_se_mc['fqnse'])  ==2
+        gt_1se_data = np.array(fq_se_data['fqnse'])  ==2
         print(f"gt 1se mc: {gt_1se_mc}, gt 1se data: {gt_1se_data}")
         gt_1se_mc = gt_1se_mc.astype(int)
         gt_1se_data = gt_1se_data.astype(int)
@@ -581,25 +562,87 @@ def analyze_ml_regression_dataMC(settings, total_charge_cut, nhits_cut):
         #Add one and times gt_1se to get the index after all events with 2 sub events
         gt_1se_hitIndex_mc = se_hits_index_mod_mc+1 
         gt_1se_hitIndex_mc = gt_1se_hitIndex_mc*gt_1se_mc
-        gt_1se_hitIndex_mc = gt_1se_hitIndex_mc[gt_1se_hitIndex_mc > 0]
+        gt_1se_hitIndex_mc = (gt_1se_hitIndex_mc > 0)[fq_map_preds_mc]
         gt_1se_hitIndex_data = se_hits_index_mod_data+1 
         gt_1se_hitIndex_data = gt_1se_hitIndex_data*gt_1se_data
-        gt_1se_hitIndex_data = gt_1se_hitIndex_data[gt_1se_hitIndex_data > 0]
+        gt_1se_hitIndex_data = gt_1se_hitIndex_data > 0
+        _, gt_1se_hitIndex_data = align_datasets(preds_data, gt_1se_hitIndex_data[fq_map_sub_data], preds_hash_data, subevents_hash_data[sub_map_fq_data])
 
+        print(f"fqipeak mc: {fq_fqOrder_fqipeak_mc}, gt_1se_hitIndex_mc: {gt_1se_hitIndex_mc}")
         cut_2inGate_mc = fq_fqOrder_fqipeak_mc[gt_1se_hitIndex_mc] == 0
-        cut_2inGate_data = fq_fqOrder_fqipeak_data[gt_1se_hitIndex_data] == 0
+        cut_2inGate_data =  fq_fqOrder_fqipeak_data[gt_1se_hitIndex_data] == 0
 
         print(f"cut 2 in-gate decay E, MC : {np.unique(cut_2inGate_mc, return_counts=True)}")
         print(f"cut 2 in-gate decay E, data : {np.unique(cut_2inGate_data, return_counts=True)}")
+
+        debug=False
+        if debug:
+            print("Debuggin cutflow")
+            gt_1se_hitIndex_mc = se_hits_index_mod_mc 
+            gt_1se_hitIndex_mc = gt_1se_hitIndex_mc*gt_1se_mc
+            gt_1se_hitIndex_mc = (gt_1se_hitIndex_mc > 0)[fq_map_preds_mc]
+            gt_1se_hitIndex_data = se_hits_index_mod_data 
+            gt_1se_hitIndex_data = gt_1se_hitIndex_data*gt_1se_data
+            gt_1se_hitIndex_data = gt_1se_hitIndex_data > 0
+            _, gt_1se_hitIndex_data = align_datasets(preds_data, gt_1se_hitIndex_data[fq_map_sub_data], preds_hash_data, subevents_hash_data[sub_map_fq_data])
+
+            test_mc = fq_fqOrder_fq1rpos_mc[gt_1se_hitIndex_mc]
+            test_data =  fq_fqOrder_fq1rpos_data[gt_1se_hitIndex_data]
+            print(f"preds_fqOrder_data: {preds_fqOrder_data}, fq 1rpos data: {test_data}")
+            print(f"preds_fqOrder_mc: {preds_fqOrder_mc}, fq 1rpos mc: {test_mc}")
+
+        #Cut on time
+        mc_1rt0_diff = np.subtract(fq_fqOrder_fq1rt0_mc_plusOne, fq_fqOrder_fq1rt0_mc)[:,:,1]
+        gt_1se0_hitIndex_mc = se_hits_index_mod_mc 
+        gt_1se0_hitIndex_mc = gt_1se0_hitIndex_mc*gt_1se_mc
+        gt_1se0_hitIndex_mc = (gt_1se0_hitIndex_mc > 0)[fq_map_preds_mc]
+        mc_1rt0_diff = (mc_1rt0_diff)[gt_1se0_hitIndex_mc]
+
+        data_1rt0_diff = np.subtract(fq_fqOrder_fq1rt0_data_plusOne, fq_fqOrder_fq1rt0_data)[:,:,1]
+        gt_1se0_hitIndex_data = se_hits_index_mod_data 
+        gt_1se0_hitIndex_data = gt_1se0_hitIndex_data*gt_1se_data
+        gt_1se0_hitIndex_data = gt_1se0_hitIndex_data > 0
+        _, gt_1se0_hitIndex_data = align_datasets(preds_data, gt_1se0_hitIndex_data[fq_map_sub_data], preds_hash_data, subevents_hash_data[sub_map_fq_data])
+        data_1rt0_diff = data_1rt0_diff[gt_1se0_hitIndex_data]
+
+
+        print(f"data time diff: {np.unique((data_1rt0_diff > 1200) & (data_1rt0_diff < 10000), return_counts=True)}, mc time diff: {np.unique((mc_1rt0_diff > 1200) & (mc_1rt0_diff < 10000), return_counts=True)}")
+
+        cut_decayEtime_data = np.array(data_1rt0_diff > 1200) & np.array(data_1rt0_diff < 10000) 
+        cut_decayEtime_mc = np.array(mc_1rt0_diff > 1200) & np.array(mc_1rt0_diff < 10000) 
+
+
+
+        #Cut on decay e distance from wall
+        gt_1sePos_hitIndex_mc = se_hits_index_mod_mc 
+        gt_1sePos_hitIndex_mc = gt_1sePos_hitIndex_mc*gt_1se_mc
+        gt_1sePos_hitIndex_mc = (gt_1sePos_hitIndex_mc > 0)[fq_map_preds_mc]
+        mc_1rPos = fq_fqOrder_fq1rpos_mc_plusOne[gt_1se0_hitIndex_mc]
+        mc_1rPos_wall = math.dwall(mc_1rPos[:,0,:], tank_axis = 2)
+
+        gt_1sePos_hitIndex_data = se_hits_index_mod_data 
+        gt_1sePos_hitIndex_data = gt_1sePos_hitIndex_data*gt_1se_data
+        gt_1sePos_hitIndex_data = gt_1sePos_hitIndex_data > 0
+        _, gt_1sePos_hitIndex_data = align_datasets(preds_data, gt_1sePos_hitIndex_data[fq_map_sub_data], preds_hash_data, subevents_hash_data[sub_map_fq_data])
+        data_1rPos = fq_fqOrder_fq1rpos_data_plusOne[gt_1se0_hitIndex_data]
+        data_1rPos_wall = math.dwall(data_1rPos[:,0,:], tank_axis = 2)
+
+
+        cut_decayEPos_data = np.ravel(data_1rPos_wall > 100)
+        cut_decayEPos_mc = np.ravel(mc_1rPos_wall > 100)
+
+        print(f"Data decay e wall: {np.unique(cut_decayEPos_data, return_counts=True)}, mc: {np.unique(cut_decayEPos_mc, return_counts=True)}")
 
         
 
         #preds_mc = preds_fqOrder_mc[fq_fqOrder_mc]
 
-        preds_mc = preds_fqOrder_mc[cut_1decayE_mc]
-        preds_mc = preds_mc[cut_2inGate_mc]
-        preds_data = preds_fqOrder_data[cut_1decayE_data]
-        preds_data = preds_data[cut_2inGate_data]
+        print(f"MC Cut shapes: preds {preds_fqOrder_mc.shape}, cut 1: {cut_1decayE_mc.shape}, cut 2: {cut_decayEtime_mc.shape}, cut 3: {cut_2inGate_mc.shape}")
+
+        preds_mc = preds_fqOrder_mc[np.ravel(cut_1decayE_mc)]
+        preds_mc = preds_mc[np.logical_and(np.logical_and(np.ravel(cut_2inGate_mc),np.ravel(cut_decayEtime_mc)), np.ravel(cut_decayEPos_mc))]
+        preds_data = preds_fqOrder_data[np.ravel(cut_1decayE_data)]
+        preds_data = preds_data[np.logical_and(np.logical_and(np.ravel(cut_2inGate_data),np.ravel(cut_decayEtime_data)), np.ravel(cut_decayEPos_data))]
 
 
         #side-entering
