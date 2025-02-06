@@ -94,10 +94,10 @@ def analyze_regression(settings):
     if settings.doDataMC:
         total_charge_cut = [1000,15000]
         nhits_cut = 200
-        if settings.doML:
-            analyze_ml_regression_dataMC(settings, total_charge_cut, nhits_cut)
         if settings.doFiTQun:
             analyze_fitqun_regression_dataMC(settings, total_charge_cut, nhits_cut)
+        if settings.doML:
+            analyze_ml_regression_dataMC(settings, total_charge_cut, nhits_cut)
 
     else:
         if settings.doFiTQun:

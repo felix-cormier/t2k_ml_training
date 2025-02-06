@@ -538,7 +538,6 @@ def analyze_ml_regression_dataMC(settings, total_charge_cut, nhits_cut):
 
         if data_predsFQ_diff > 50 or mc_predsFQ_diff > 50:
             print(f"WARNING, Data ({data_predsFQ_diff}) or MC ({mc_predsFQ_diff}) average difference between ML and fiTQun position prediction is > 50, Exiting...")
-            return 0
         
         #Cuts like fiTQun data/MC paper
 
@@ -640,18 +639,26 @@ def analyze_ml_regression_dataMC(settings, total_charge_cut, nhits_cut):
         print(f"MC Cut shapes: preds {preds_fqOrder_mc.shape}, cut 1: {cut_1decayE_mc.shape}, cut 2: {cut_decayEtime_mc.shape}, cut 3: {cut_2inGate_mc.shape}")
 
         preds_mc = preds_fqOrder_mc[np.ravel(cut_1decayE_mc)]
-        preds_mc = preds_mc[np.logical_and(np.logical_and(np.ravel(cut_2inGate_mc),np.ravel(cut_decayEtime_mc)), np.ravel(cut_decayEPos_mc))]
+        cut_1_mc = np.logical_and(np.ravel(cut_2inGate_mc),np.ravel(cut_decayEtime_mc))
+        cut_2_mc = np.logical_and(cut_1_mc, np.ravel(cut_decayEPos_mc))
+        preds_mc = preds_mc[cut_2_mc]
+
         preds_data = preds_fqOrder_data[np.ravel(cut_1decayE_data)]
-        preds_data = preds_data[np.logical_and(np.logical_and(np.ravel(cut_2inGate_data),np.ravel(cut_decayEtime_data)), np.ravel(cut_decayEPos_data))]
+        cut_1_data = np.logical_and(np.ravel(cut_2inGate_data),np.ravel(cut_decayEtime_data))
+        cut_2_data = np.logical_and(cut_1_data, np.ravel(cut_decayEPos_data))
+        preds_data = preds_data[cut_2_data]
+
+        #preds_mc = preds_mc[np.logical_and(np.logical_and(np.ravel(cut_2inGate_mc),np.ravel(cut_decayEtime_mc)), np.ravel(cut_decayEPos_mc))]
+        #preds_data = preds_data[np.logical_and(np.logical_and(np.ravel(cut_2inGate_data),np.ravel(cut_decayEtime_data)), np.ravel(cut_decayEPos_data))]
 
 
         #side-entering
-        r_bool_cut_mc_se = (np.sqrt(np.square(preds_mc[:,0])+np.square(preds_mc[:,1])) > 1600) & (preds_mc[:,2] < 1750)
-        r_bool_cut_data_se = (np.sqrt(np.square(preds_data[:,0])+np.square(preds_data[:,1])) > 1600) & (preds_data[:,2] < 1750)
+        r_bool_cut_mc_se = (np.sqrt(np.square(preds_mc[:,0])+np.square(preds_mc[:,1])) > 1600) & (np.sqrt(np.square(preds_mc[:,0])+np.square(preds_mc[:,1])) < 1750) &(preds_mc[:,2] < 1700)
+        r_bool_cut_data_se = (np.sqrt(np.square(preds_data[:,0])+np.square(preds_data[:,1])) > 1600) & (np.sqrt(np.square(preds_data[:,0])+np.square(preds_data[:,1])) < 1750) & (preds_data[:,2] < 1700)
 
         #top-entering
-        r_bool_cut_mc_te = (np.sqrt(np.square(preds_mc[:,0])+np.square(preds_mc[:,1])) < 1600) & (preds_mc[:,2] > 1750)
-        r_bool_cut_data_te = (np.sqrt(np.square(preds_data[:,0])+np.square(preds_data[:,1])) < 1600) & (preds_data[:,2] > 1750)
+        r_bool_cut_mc_te = (np.sqrt(np.square(preds_mc[:,0])+np.square(preds_mc[:,1])) < 1550) & (preds_mc[:,2] > 1500) & (preds_mc[:,2] < 1850) 
+        r_bool_cut_data_te = (np.sqrt(np.square(preds_data[:,0])+np.square(preds_data[:,1])) < 1550) & (preds_data[:,2] > 1500) & (preds_data[:,2] < 1850) 
 
         print(f"ML pre-cut: {len(preds_mc)}")
         preds_mc_se = apply_quality_cuts(r_bool_cut_mc_se, preds_mc)
@@ -692,13 +699,13 @@ def analyze_ml_regression_dataMC(settings, total_charge_cut, nhits_cut):
         #plot_with_ratio(np.ravel(np.sqrt(np.square(preds_data[:,0])+np.square(preds_data[:,1]))), np.ravel(np.sqrt(np.square(preds_mc[:,0])+np.square(preds_mc[:,1]))), 'Data Reco R [cm]', 'MC Reco R [cm]', bins, range, settings.outputPlotPath+"/stoppingMuons_ML_MCData_position_R.png", 'Reco R Position [cm]', truth=np.sqrt(np.square(truth[:,0])+np.square(truth[:,1])))
         plot_with_ratio(np.ravel(np.sqrt(np.square(preds_data_se[:,0])+np.square(preds_data_se[:,1]))), np.ravel(np.sqrt(np.square(preds_mc_se[:,0])+np.square(preds_mc_se[:,1]))), 'data_se Reco R [cm]', 'mc_se Reco R [cm]', bins, range, settings.outputPlotPath+"/stoppingMuons_ML_sideEntering_mc_data_position_R.png", 'Reco R Position [cm]' )
         bins = 32 
-        range=[0,1600]
+        range=[0,1550]
         plot_with_ratio(np.ravel(np.sqrt(np.square(preds_data_te[:,0])+np.square(preds_data_te[:,1]))), np.ravel(np.sqrt(np.square(preds_mc_te[:,0])+np.square(preds_mc_te[:,1]))), 'data_te Reco R [cm]', 'mc_te Reco R [cm]', bins, range, settings.outputPlotPath+"/stoppingMuons_ML_topEntering_mc_data_position_R.png", 'Reco R Position [cm]' )
         bins = 40
-        range=[-1690,2000]
+        range=[-1690,1700]
         plot_with_ratio(np.ravel(preds_data_se[:,2]), np.ravel(preds_mc_se[:,2]), 'Data Reco Z [cm]', 'MC Reco Z [cm]', bins, range, settings.outputPlotPath+"/stoppingMuons_ML_sideEntering_mc_Data_position_Z.png", 'Reco Z Position [cm]')
         bins = 40
-        range=[1780,1880]
+        range=[1500,1840]
         plot_with_ratio(np.ravel(preds_data_te[:,2]), np.ravel(preds_mc_te[:,2]), 'Data Reco Z [cm]', 'MC Reco Z [cm]', bins, range, settings.outputPlotPath+"/stoppingMuons_ML_mc_teData_position_Z_zoom.png", 'Reco Z Position [cm]')
 
         return 0
@@ -849,6 +856,13 @@ def analyze_fitqun_regression_dataMC(settings, total_charge_cut, nhits_cut):
     file_mc = settings.FQMCPath
     file_data = settings.FQDataPath
 
+    fq_se_mc = get_secondaries_file(settings.FQMCSecondariesPath)
+    fq_se_data = get_secondaries_file(settings.FQDataSecondariesPath)
+
+
+
+
+
     (_, labels_mc, _, fitqun_hash_mc), (mu_1rpos_mc, e_1rpos_mc, pi_1rpos_mc, mu_1rdir_mc, e_1rdir_mc, pi_1rdir_mc, mu_1rmom_mc, e_1rmom_mc, pi_1rmom_mc), fq_truth_mc, nhits_mc, qtot_mc= fq.read_fitqun_file(file_mc+'/fitqun_combine.hy', regression=True)
     (_, labels_data, _, fitqun_hash_data), (mu_1rpos_data, e_1rpos_data, pi_1rpos_data, mu_1rdir_data, e_1rdir_data, pi_1rdir_data, mu_1rmom_data, e_1rmom_data, pi_1rmom_data), fq_truth_data, nhits_data, qtot_data= fq.read_fitqun_file(file_data+'/fitqun_combine.hy', regression=True)
 
@@ -866,14 +880,176 @@ def analyze_fitqun_regression_dataMC(settings, total_charge_cut, nhits_cut):
     elif settings.doRegression and "positions" in settings.target:
 
 
-        mu_1rpos_mc = np.squeeze(mu_1rpos_mc)
-        mu_1rpos_data = np.squeeze(mu_1rpos_data)
+        #mu_1rpos_mc = np.squeeze(mu_1rpos_mc)
+        #mu_1rpos_data = np.squeeze(mu_1rpos_data)
+        #Cut on total charge and nhits
+        cut_tc_mc = np.logical_and(np.array(fq_se_mc['potot']) > total_charge_cut[0], np.array(fq_se_mc['potot']) < total_charge_cut[1])  
+        cut_tc_data = np.logical_and(np.array(fq_se_data['potot']) > total_charge_cut[0], np.array(fq_se_data['potot']) < total_charge_cut[1])  
 
-        r_bool_cut_mc_se = (np.sqrt(np.square(mu_1rpos_mc[:,0])+np.square(mu_1rpos_mc[:,1])) > 1600) & (mu_1rpos_mc[:,2] < 1750)
-        r_bool_cut_data_se = (np.sqrt(np.square(mu_1rpos_data[:,0])+np.square(mu_1rpos_data[:,1])) > 1600) & (mu_1rpos_data[:,2] < 1750)
+        cut_nhits_mc = np.array(fq_se_mc['nhit']) > nhits_cut
+        cut_nhits_data = np.array(fq_se_data['nhit']) > nhits_cut
 
-        r_bool_cut_mc_te = (np.sqrt(np.square(mu_1rpos_mc[:,0])+np.square(mu_1rpos_mc[:,1])) < 1600) & (mu_1rpos_mc[:,2] > 1750)
-        r_bool_cut_data_te = (np.sqrt(np.square(mu_1rpos_data[:,0])+np.square(mu_1rpos_data[:,1])) < 1600) & (mu_1rpos_data[:,2] > 1750)
+        print(f"FQ total charge, max mc {np.amax(fq_se_mc['potot'])}, max data: {np.amax(fq_se_data['potot'])} cut mc: {np.unique(cut_tc_mc, return_counts=True)}, data: {np.unique(cut_tc_data, return_counts=True)}")
+        print(f"FQ nhits cut mc: {np.unique(cut_nhits_mc, return_counts=True)}, data: {np.unique(cut_nhits_data, return_counts=True)}")
+
+
+
+        se_hits_index_mod_mc = np.array(fq_se_mc['subevents_hit_index'])[cut_tc_mc & cut_nhits_mc]#+1, np.array(fq_se_mc['fq1rpos']).shape[0]) #transform_array(np.array(fq_se_mc['subevents_hit_index']))#modify_array(np.array(fq_se_mc['subevents_hit_index']))
+        se_hits_index_mod_data = np.array(fq_se_data['subevents_hit_index'])[cut_tc_data & cut_nhits_data]#modify_array(np.array(fq_se_data['subevents_hit_index']))
+        fq_fqOrder_fq1rpos_data = (np.array(fq_se_data['fq1rpos'])[se_hits_index_mod_data])
+        fq_fqOrder_fq1rpos_mc = (np.array(fq_se_mc['fq1rpos'])[se_hits_index_mod_mc])
+        fq_fqOrder_fqipeak_data = (np.array(fq_se_data['fqipeak'])[se_hits_index_mod_data])
+        fq_fqOrder_fqipeak_mc = (np.array(fq_se_mc['fqipeak'])[se_hits_index_mod_mc])
+        fq_fqOrder_fq1rt0_data = (np.array(fq_se_data['fq1rt0'])[se_hits_index_mod_data])
+        fq_fqOrder_fqipeak_mc = (np.array(fq_se_mc['fqipeak'])[se_hits_index_mod_mc])
+        fq_fqOrder_fq1rt0_mc = (np.array(fq_se_mc['fq1rt0'])[se_hits_index_mod_mc])
+        fq_fqOrder_pos_mc = np.array(fq_se_mc['position']) 
+        fq_fqOrder_nse_mc = np.array(fq_se_mc['fqnse'])[cut_tc_mc & cut_nhits_mc]
+        fq_fqOrder_nse_data = np.array(fq_se_data['fqnse'])[cut_tc_data & cut_nhits_data] 
+
+        if (se_hits_index_mod_data+1)[-1] > np.array(fq_se_mc['fq1rt0']).shape[0]: 
+            fq_fqOrder_fq1rt0_data_plusOne = (np.append(np.array(fq_se_data['fq1rt0']), np.array(fq_se_data['fq1rt0'])[-1,:,:].reshape(1,1,3),axis=0)[se_hits_index_mod_data+1])
+            fq_fqOrder_fq1rpos_data_plusOne = (np.append(np.array(fq_se_data['fq1rpos']), np.array(fq_se_data['fq1rpos'])[-1,:,:].reshape(1,3,3),axis=0)[se_hits_index_mod_data+1])
+        else:
+            fq_fqOrder_fq1rt0_data_plusOne = (np.array(fq_se_data['fq1rt0'])[se_hits_index_mod_data+1])
+            fq_fqOrder_fq1rpos_data_plusOne = (np.array(fq_se_data['fq1rpos'])[se_hits_index_mod_data+1])
+        if (se_hits_index_mod_mc+1)[-1] > np.array(fq_se_mc['fq1rt0']).shape[0]: 
+            fq_fqOrder_fq1rt0_mc_plusOne = (np.append(np.array(fq_se_mc['fq1rt0']), np.array(fq_se_mc['fq1rt0'])[-1,:,:].reshape(1,1,3),axis=0)[se_hits_index_mod_mc+1])
+            fq_fqOrder_fq1rpos_mc_plusOne = (np.append(np.array(fq_se_mc['fq1rpos']), np.array(fq_se_mc['fq1rpos'])[-1,:,:].reshape(1,3,3),axis=0)[se_hits_index_mod_mc+1])
+        else:
+            fq_fqOrder_fq1rt0_mc_plusOne = (np.array(fq_se_mc['fq1rt0'])[se_hits_index_mod_mc+1])
+            fq_fqOrder_fq1rpos_mc_plusOne = (np.array(fq_se_mc['fq1rpos'])[se_hits_index_mod_mc+1])
+
+        #Cuts like fiTQun data/MC paper
+
+        #Cut 1, exactly 1 decay electron
+        cut_1decayE_mc = fq_fqOrder_nse_mc == 2  
+        cut_1decayE_data = fq_fqOrder_nse_data == 2  
+
+        print(f"cut 1 decay E, MC : {np.unique(cut_1decayE_mc, return_counts=True)}")
+        print(f"cut 1 decay E, data : {np.unique(cut_1decayE_data, return_counts=True)}")
+
+
+        #Cut 2, decay electron is not in gate
+
+        #Find all events that have more than 1 sub-event, convert to int
+        gt_1se_mc = np.array(fq_se_mc['fqnse'])[cut_tc_mc & cut_nhits_mc]  ==2
+        gt_1se_data = np.array(fq_se_data['fqnse'])[cut_tc_data & cut_nhits_data]  ==2
+        print(f"gt 1se mc: {np.unique(gt_1se_mc, return_counts=True)}, gt 1se data: {np.unique(gt_1se_data,return_counts=True)}")
+        gt_1se_mc = gt_1se_mc.astype(int)
+        gt_1se_data = gt_1se_data.astype(int)
+
+        #Add one and times gt_1se to get the index after all events with 2 sub events
+        gt_1se_hitIndex_mc = se_hits_index_mod_mc+1 
+        gt_1se_hitIndex_mc = gt_1se_hitIndex_mc*gt_1se_mc
+        gt_1se_hitIndex_mc = (gt_1se_hitIndex_mc > 0)
+        gt_1se_hitIndex_data = se_hits_index_mod_data+1 
+        gt_1se_hitIndex_data = gt_1se_hitIndex_data*gt_1se_data
+        gt_1se_hitIndex_data = gt_1se_hitIndex_data > 0
+
+        print(f"fqipeak mc: {fq_fqOrder_fqipeak_mc}, gt_1se_hitIndex_mc: {gt_1se_hitIndex_mc}")
+        cut_2inGate_mc = fq_fqOrder_fqipeak_mc[gt_1se_hitIndex_mc] == 0
+        cut_2inGate_data =  fq_fqOrder_fqipeak_data[gt_1se_hitIndex_data] == 0
+
+        print(f"cut 2 in-gate decay E, MC : {np.unique(cut_2inGate_mc, return_counts=True)}")
+        print(f"cut 2 in-gate decay E, data : {np.unique(cut_2inGate_data, return_counts=True)}")
+
+        debug=False
+        if debug:
+            print("Debuggin cutflow")
+            gt_1se_hitIndex_mc = se_hits_index_mod_mc 
+            gt_1se_hitIndex_mc = gt_1se_hitIndex_mc*gt_1se_mc
+            gt_1se_hitIndex_mc = (gt_1se_hitIndex_mc > 0)
+            gt_1se_hitIndex_data = se_hits_index_mod_data 
+            gt_1se_hitIndex_data = gt_1se_hitIndex_data*gt_1se_data
+            gt_1se_hitIndex_data = gt_1se_hitIndex_data > 0
+
+            test_mc = fq_fqOrder_fq1rpos_mc[gt_1se_hitIndex_mc]
+            test_data =  fq_fqOrder_fq1rpos_data[gt_1se_hitIndex_data]
+
+        #Cut on time
+        mc_1rt0_diff = np.subtract(fq_fqOrder_fq1rt0_mc_plusOne, fq_fqOrder_fq1rt0_mc)[:,:,1]
+        gt_1se0_hitIndex_mc = se_hits_index_mod_mc 
+        gt_1se0_hitIndex_mc = gt_1se0_hitIndex_mc*gt_1se_mc
+        #Doesn't work if the first event has two subevents, do some hacking
+        if gt_1se_mc[0]:
+            gt_1se0_hitIndex_mc[0] = 1
+        gt_1se0_hitIndex_mc = (gt_1se0_hitIndex_mc > 0)
+        mc_1rt0_diff = (mc_1rt0_diff)[gt_1se0_hitIndex_mc]
+
+        data_1rt0_diff = np.subtract(fq_fqOrder_fq1rt0_data_plusOne, fq_fqOrder_fq1rt0_data)[:,:,1]
+        gt_1se0_hitIndex_data = se_hits_index_mod_data 
+        gt_1se0_hitIndex_data = gt_1se0_hitIndex_data*gt_1se_data
+        if gt_1se_data[0]:
+            gt_1se0_hitIndex_data[0] = 1
+            gt_1se0_hitIndex_data = (gt_1se0_hitIndex_data > 0)
+        else:
+            gt_1se0_hitIndex_data = (gt_1se0_hitIndex_data > 0)
+        data_1rt0_diff = data_1rt0_diff[gt_1se0_hitIndex_data]
+
+
+        print(f"data time diff: {np.unique((data_1rt0_diff > 1200) & (data_1rt0_diff < 10000), return_counts=True)}, mc time diff: {np.unique((mc_1rt0_diff > 1200) & (mc_1rt0_diff < 10000), return_counts=True)}")
+
+        cut_decayEtime_data = np.array(data_1rt0_diff > 1200) & np.array(data_1rt0_diff < 10000) 
+        cut_decayEtime_mc = np.array(mc_1rt0_diff > 1200) & np.array(mc_1rt0_diff < 10000) 
+
+
+
+        #Cut on decay e distance from wall
+        gt_1sePos_hitIndex_mc = se_hits_index_mod_mc 
+        gt_1sePos_hitIndex_mc = gt_1sePos_hitIndex_mc*gt_1se_mc
+        if gt_1se_mc[0]:
+            gt_1sePos_hitIndex_mc[0] = 1
+        gt_1sePos_hitIndex_mc = (gt_1sePos_hitIndex_mc > 0)
+        mc_1rPos = fq_fqOrder_fq1rpos_mc_plusOne[gt_1se0_hitIndex_mc]
+        mc_1rPos_wall = math.dwall(mc_1rPos[:,0,:], tank_axis = 2)
+
+        gt_1sePos_hitIndex_data = se_hits_index_mod_data 
+        gt_1sePos_hitIndex_data = gt_1sePos_hitIndex_data*gt_1se_data
+        if gt_1se_data[0]:
+            gt_1sePos_hitIndex_data[0] = 1
+        gt_1sePos_hitIndex_data = gt_1sePos_hitIndex_data > 0
+        data_1rPos = fq_fqOrder_fq1rpos_data_plusOne[gt_1se0_hitIndex_data]
+        data_1rPos_wall = math.dwall(data_1rPos[:,0,:], tank_axis = 2)
+
+
+        cut_decayEPos_data = np.ravel(data_1rPos_wall > 100)
+        cut_decayEPos_mc = np.ravel(mc_1rPos_wall > 100)
+
+        print(f"Data decay e wall: {np.unique(cut_decayEPos_data, return_counts=True)}, mc: {np.unique(cut_decayEPos_mc, return_counts=True)}")
+
+        
+
+        #preds_mc = preds_fqOrder_mc[fq_fqOrder_mc]
+
+        print(f"MC Cut shapes: preds {fq_fqOrder_fq1rpos_mc.shape}, cut 1: {cut_1decayE_mc.shape}, cut 2: {cut_decayEtime_mc.shape}, cut 3: {cut_2inGate_mc.shape}")
+
+        #Take only muon hypothesis
+        fq_fqOrder_fq1rpos_mc = fq_fqOrder_fq1rpos_mc[:,1,:]
+        fq_fqOrder_fq1rpos_data = fq_fqOrder_fq1rpos_data[:,1,:]
+
+
+        mu_1rpos_mc = fq_fqOrder_fq1rpos_mc[np.ravel(cut_1decayE_mc)]
+        mu_1rpos_data = fq_fqOrder_fq1rpos_data[np.ravel(cut_1decayE_data)]
+        print(f"mu 1rpos: {mu_1rpos_data.shape}, decaye: {cut_1decayE_data.shape}, ingate: {cut_2inGate_data.shape}, etime: {cut_decayEtime_data.shape}, epos: {cut_decayEPos_data.shape}")
+    
+        cut_1_mc = np.logical_and(np.ravel(cut_2inGate_mc),np.ravel(cut_decayEtime_mc))
+        cut_2_mc = np.logical_and(cut_1_mc, np.ravel(cut_decayEPos_mc))
+        mu_1rpos_mc = mu_1rpos_mc[cut_2_mc]
+
+        cut_1_data = np.logical_and(np.ravel(cut_2inGate_data),np.ravel(cut_decayEtime_data))
+        cut_2_data = np.logical_and(cut_1_data, np.ravel(cut_decayEPos_data))
+        mu_1rpos_data = mu_1rpos_data[cut_2_data]
+
+
+
+        #Side-entering
+        r_bool_cut_mc_se = (np.sqrt(np.square(mu_1rpos_mc[:,0])+np.square(mu_1rpos_mc[:,1])) > 1600) & (np.sqrt(np.square(mu_1rpos_mc[:,0])+np.square(mu_1rpos_mc[:,1])) < 1750) & (mu_1rpos_mc[:,2] < 1700)
+        r_bool_cut_data_se = (np.sqrt(np.square(mu_1rpos_data[:,0])+np.square(mu_1rpos_data[:,1])) > 1600) & (np.sqrt(np.square(mu_1rpos_data[:,0])+np.square(mu_1rpos_data[:,1])) < 1750) & (mu_1rpos_data[:,2] < 1750)
+
+        #Top-entering
+        r_bool_cut_mc_te = (np.sqrt(np.square(mu_1rpos_mc[:,0])+np.square(mu_1rpos_mc[:,1])) < 1550) & (mu_1rpos_mc[:,2] > 1750) & (mu_1rpos_mc[:,2] < 1850)
+        r_bool_cut_data_te = (np.sqrt(np.square(mu_1rpos_data[:,0])+np.square(mu_1rpos_data[:,1])) < 1550) & (mu_1rpos_data[:,2] > 1750)  & (mu_1rpos_data[:,2] < 1850)
 
 
         #r_bool_cut_mc = (np.ravel(np.sqrt(np.square(mu_1rpos_mc[:,0])+np.square(mu_1rpos_mc[:,1]))) < 1300) & (mu_1rpos_mc[:,2] > 1700)
@@ -881,14 +1057,14 @@ def analyze_fitqun_regression_dataMC(settings, total_charge_cut, nhits_cut):
 
         print(f"ML pre-cut: {len(mu_1rpos_mc)}")
         mu_1rpos_mc_se = apply_quality_cuts(r_bool_cut_mc_se, mu_1rpos_mc)
-        mu_1rdir_mc_se = apply_quality_cuts(r_bool_cut_mc_se, mu_1rdir_mc)
+        #mu_1rdir_mc_se = apply_quality_cuts(r_bool_cut_mc_se, mu_1rdir_mc)
         mu_1rpos_mc_te = apply_quality_cuts(r_bool_cut_mc_te, mu_1rpos_mc)
-        mu_1rdir_mc_te = apply_quality_cuts(r_bool_cut_mc_te, mu_1rdir_mc)
+        #mu_1rdir_mc_te = apply_quality_cuts(r_bool_cut_mc_te, mu_1rdir_mc)
         print(f"ML post-cut: {len(mu_1rpos_mc)}")
         mu_1rpos_data_se = apply_quality_cuts(r_bool_cut_data_se, mu_1rpos_data)
-        mu_1rdir_data_se = apply_quality_cuts(r_bool_cut_data_se, mu_1rdir_data)
+        #mu_1rdir_data_se = apply_quality_cuts(r_bool_cut_data_se, mu_1rdir_data)
         mu_1rpos_data_te = apply_quality_cuts(r_bool_cut_data_te, mu_1rpos_data)
-        mu_1rdir_data_te = apply_quality_cuts(r_bool_cut_data_te, mu_1rdir_data)
+        #mu_1rdir_data_te = apply_quality_cuts(r_bool_cut_data_te, mu_1rdir_data)
 
         do_2d_endcap_plot(settings, np.squeeze(mu_1rpos_data_se[:,0]), np.squeeze(mu_1rpos_data_se[:,1]), np.squeeze(mu_1rpos_data_se[:,2]), "stoppingMuons_fiTQun_sideEntering_data_position_endcap2Dmap.png")
         do_2d_endcap_plot(settings, np.squeeze(mu_1rpos_data_te[:,0]), np.squeeze(mu_1rpos_data_te[:,1]), np.squeeze(mu_1rpos_data_te[:,2]), "stoppingMuons_fiTQun_topEntering_data_position_endcap2Dmap.png")
@@ -900,14 +1076,16 @@ def analyze_fitqun_regression_dataMC(settings, total_charge_cut, nhits_cut):
         range=[1660,1720]
         plot_with_ratio(np.ravel(np.sqrt(np.square(mu_1rpos_data_se[:,0])+np.square(mu_1rpos_data_se[:,1]))), np.ravel(np.sqrt(np.square(mu_1rpos_mc_se[:,0])+np.square(mu_1rpos_mc_se[:,1]))), 'Data Reco R [cm]', 'MC Reco R [cm]', bins, range, settings.outputPlotPath+"/stoppingMuons_fiTQun_sideEntering_mc_Data_position_R.png", 'Reco R Position [cm]')
         bins = 32 
-        range=[0,1600]
+        range=[0,1550]
         plot_with_ratio(np.ravel(np.sqrt(np.square(mu_1rpos_data_te[:,0])+np.square(mu_1rpos_data_te[:,1]))), np.ravel(np.sqrt(np.square(mu_1rpos_mc_te[:,0])+np.square(mu_1rpos_mc_te[:,1]))), 'Data Reco R [cm]', 'MC Reco R [cm]', bins, range, settings.outputPlotPath+"/stoppingMuons_fiTQun_topEntering_mc_Data_position_R.png", 'Reco R Position [cm]')
         bins = 40
-        range=[-1690,2000]
+        range=[-1690,1700]
         plot_with_ratio(np.ravel(mu_1rpos_data_se[:,2]), np.ravel(mu_1rpos_mc_se[:,2]), 'Data Reco Z [cm]', 'MC Reco Z [cm]', bins, range, settings.outputPlotPath+"/stoppingMuons_fiTQun_sideEntering_mc_Data_position_Z.png", 'Reco Z Position [cm]')
         bins = 40
         range=[1750,1850]
         plot_with_ratio(np.ravel(mu_1rpos_data_te[:,2]), np.ravel(mu_1rpos_mc_te[:,2]), 'Data Reco Z [cm]', 'MC Reco Z [cm]', bins, range, settings.outputPlotPath+"/stoppingMuons_fiTQun_topEntering_mc_Data_position_Z.png", 'Reco Z Position [cm]')
+
+        return 0
 
         angles_mc = math.angles_from_direction(mu_1rdir_mc)
         towall_mc = math.towall(mu_1rpos_mc, angles_mc, tank_axis = 2)
