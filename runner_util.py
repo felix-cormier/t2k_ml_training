@@ -15,7 +15,13 @@ from math import log
 
 import WatChMaL.analysis.utils.math as math
 
-from generics_python.make_plots import generic_histogram, generic_2D_plot
+
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt
+from matplotlib.offsetbox import AnchoredText
+
+#from generics_python.make_plots import generic_histogram, generic_2D_plot
 
 
 #from WatChMaL.watchmal.model.pointnet import PointNetFeat
@@ -45,6 +51,18 @@ def mom_from_energies(energies, labels):
     momenta[labels == 2] = np.sqrt(np.multiply(energies[labels==2], energies[labels==2]) - np.multiply(momenta[labels==2]*139.584,momenta[labels==2]*139.584))
     return momenta
 
+# computes range for each particle from energy, for muons and electrons. Range is used for fully contained cut. Not implemented for pions.
+def range_from_energy(energies, labels):
+     momenta = mom_from_energies(energies, labels)
+     ranges = np.zeros(momenta.shape[0])
+     e_shower_depth = np.zeros(momenta.shape[0])
+     range_fit_params = mom_to_range_dicts()
+     ranges[labels==0] = lq(momenta[labels==0], range_fit_params[0][0], range_fit_params[0][1], range_fit_params[0][2])
+     ranges[labels==1] = lq(momenta[labels==1], range_fit_params[1][0], range_fit_params[1][1], range_fit_params[1][2])
+     e_shower_depth[(labels==1)] = electron_shower_depth(energies[labels==1])
+     ranges[labels==1] = np.maximum(ranges[labels==1], e_shower_depth[labels==1])
+     return ranges
+
 def lq(x, a, b, c):
     return a+b*x+c*x*x
 
@@ -71,7 +89,7 @@ def electron_shower_depth(energy):
     return 36*(np.log(energy/10.))/(log(2)) 
 
 
-def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/', seed=0, nfolds=3, fully_contained=False, classification=False, keep_label=None):
+def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/', seed=0, nfolds=3, fully_contained=False, stopMu=False, mcData=False, testOnly=False):
     """Outputs indices to split h5 files into train/test/val 
 
     Args:
@@ -183,20 +201,85 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
             print("ENERGIES < 2000 MeV")
         #Keep all    
 
-        else:
-            #indices_to_keep = np.where(np.ravel(h5py.File(h5_file,mode='r')['labels'])==1)
-            indices_to_keep = np.array(range(len(dwall_cut)))
+
+                print(momenta[(labels==0) | (labels==2)])
+                print(f"RANGES: {ranges}")
+                print(f"LABELS: {labels}")
+                towall_compare = towall > 2*ranges
+
+                #print(np.unique(towall_compare, return_counts=True))
+
+                #print(f"towall: {towall[towall_compare==False]}")
+                #print(f"range: {ranges[towall_compare==False]}")
+                #print(f"momenta: {momenta[towall_compare==False]}")
+            if stopMu:
+                events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
+                nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
+                indices_to_keep = np.where(np.logical_and(labels==0,nhits>200))
+            elif 'keep_event' in h5fw.keys():
+                print(f'NEW! WARNING: Removing additional events to flatten truth visible energy distribution')
+
+                events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
+                nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
+
+                keep_bool = np.array(h5fw['keep_event'])
+                print(np.unique(keep_bool,return_counts=True))
+                print(np.unique(towall_compare,return_counts=True))
+                print(np.unique(labels,return_counts=True))
+                if fully_contained:
+                    indices_to_keep = np.where(np.logical_and(np.logical_and(np.logical_and(towall_compare == True, towall_compare==True),labels==1), nhits > 200))[0] 
+                    generic_histogram(towall, 'Towall [cm]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'towall_noCuts', range = [0,5000], y_name = "a.u.", label="No Cuts", bins=20, doNorm=True)
+                    generic_histogram(towall[indices_to_keep], 'Towall [cm]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'towall_rangeCut', range = [0,5000], y_name = "a.u.", label="Range Cut", bins=20, doNorm=True)
+                    generic_histogram(momenta, 'Truth Visible Momentum [MeV]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'truth_vm_noCuts', range=[50,2000], y_name = "a.u.", label="No Cuts", bins=40, doNorm=True)
+                    generic_histogram(momenta[indices_to_keep], 'Truth Visible Momentum [MeV]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'truth_vm_rangeCut', range=[50,2000], y_name = "a.u.", label="Range Cut", bins=40, doNorm=True)
+                else:
+                    #indices_to_keep = np.where(np.logical_and(np.logical_and(keep_bool == True, labels==1), nhits > 200))[0] 
+                    indices_to_keep = np.where(np.logical_and(keep_bool == True, nhits > 200))[0] 
+                    print("KEEP EVENT AND NOT FULLY CONTAINED")
+                print(nhits)
+                #indices_to_keep = np.where(keep_bool == True)[0] 
+            elif fully_contained:
+                events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
+                print(events_hits_index)
+                nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
+                indices_to_keep = np.where(np.logical_and(np.logical_and(towall_compare==True, towall_compare==True), nhits>200))
+                print("Adding fully contained to cut")
+            #Keep all    
+
+            else:
+                #indices_to_keep = np.where(np.ravel(h5py.File(h5_file,mode='r')['labels'])==1)
+                indices_to_keep = np.array(range(len(dwall_cut)))
+                events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
+                #print(events_hits_index)
+                nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
+                #print(f'itk length: {len(indices_to_keep)}')
+                print(np.ravel(h5py.File(h5_file,mode='r')['labels'])==0)
+                print("NOT FULLY CONTAINED OR KEEP_EVENT")
+                indices_to_keep = np.where(np.logical_and(np.ravel(h5py.File(h5_file,mode='r')['labels'])==0, nhits > 200))
+                print(indices_to_keep)
+                #print(f'itk length after: {indices_to_keep[0].shape}')
+                #print(np.unique(nhits > 1000, return_counts=True))
+    else:
+        length = len(h5py.File(h5_file,mode='r')['event_hits_index'])
+        print(f"Initial size of sample: {length}")
+        with h5py.File(h5_file, mode='r') as h5fw:
+            labels = np.array(h5fw['labels'])
+            unique_root_files, unique_inverse, unique_counts = np.unique(h5py.File(h5_file,mode='r')['root_files'], return_inverse=True, return_counts=True)
+            indices_to_keep = np.array(range(length))
             events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
-            #print(events_hits_index)
             nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
-            #print(f'itk length: {len(indices_to_keep)}')
-            print(np.ravel(h5py.File(h5_file,mode='r')['labels'])==0)
-            print("NOT FULLY CONTAINED OR KEEP_EVENT")
-            indices_to_keep = np.where(np.logical_and(np.ravel(h5py.File(h5_file,mode='r')['labels'])==0, nhits > 200))
-            print(indices_to_keep)
-            #print(f'itk length after: {indices_to_keep[0].shape}')
-            #print(np.unique(nhits > 1000, return_counts=True))
-            
+            print(f"NHITS: {nhits}")
+            total_charge = np.array([part.sum() for part in np.split(h5fw['hit_charge'], np.cumsum(nhits))[:-1]])
+            energies = np.squeeze(h5fw['energies'])
+            plt.hist2d(energies, total_charge, bins=[100,100], range = [[0,2000],[0,20000]])
+            plt.savefig("plots/mcData_indices_test.png")
+            print(f"total_charge: {total_charge}, min total charge: {np.amin(total_charge)}")
+            indices_to_keep = np.squeeze(np.where(np.logical_and(np.logical_and(total_charge < 15000,nhits>200), total_charge > 1000)))
+            plt.hist2d(energies[indices_to_keep], total_charge[indices_to_keep], bins=[100,100], range = [[0,2000],[0,20000]])
+            plt.savefig("plots/mcData_indices_test.png")
+            print(f"Size after nhits and total charge reduction: {len(indices_to_keep)}")
+        print(f"DOING MC/DATA")
+                
     
     print(f'indices to keep: {len(indices_to_keep)}')
     #Based on root files, divide indices into train/val/test
@@ -231,6 +314,25 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
         print(np.unique(labels[test_indices],return_counts=True))
 
         np.savez(output_path + 'train'+str(train_val_test_split[0])+'_val'+str(train_val_test_split[1])+'_test'+str(1-train_val_test_split[0]-train_val_test_split[1])+'.npz',
+                    test_idxs=test_indices, val_idxs=val_indices, train_idxs=train_indices)
+    elif stopMu or testOnly:
+        print("Stopping Muons: all test indices")
+        test_indices = np.array(list(range(length)))
+        print(test_indices)
+        print(indices_to_keep)
+        test_indices = test_indices[np.isin(test_indices, indices_to_keep)]
+        train_indices = []
+        val_indices = []
+        print(f"Test indices: {test_indices}")
+        print(f"Val indices: {val_indices}")
+        print(f"Train indices: {train_indices}")
+        print(output_path)
+        print(np.unique(np.ravel(labels)[test_indices],return_counts=True))
+        if testOnly:
+            np.savez(output_path + 'testOnly_indices.npz',
+                    test_idxs=test_indices, val_idxs=val_indices, train_idxs=train_indices)
+        else:
+            np.savez(output_path + 'train_val_test_stopMu_1000TC15000.npz',
                     test_idxs=test_indices, val_idxs=val_indices, train_idxs=train_indices)
     else:
         kf = KFold(n_splits=nfolds, shuffle=True, random_state=seed)
@@ -697,17 +799,73 @@ class analysisUtils():
                 self.doClassification = config[arch].getboolean(key)
             elif 'DoRegression'.lower() in key.lower():
                 self.doRegression = config[arch].getboolean(key)
+            elif 'DoDataMC'.lower() in key.lower():
+                self.doDataMC = config[arch].getboolean(key)
             elif 'DoML'.lower() in key.lower():
                 self.doML = config[arch].getboolean(key)
             elif 'DoFiTQun'.lower() in key.lower():
                 self.doFiTQun = config[arch].getboolean(key)
             elif 'DoCombination'.lower() in key.lower():
                 self.doCombination = config[arch].getboolean(key)
+            elif 'getfiTQunTruth'.lower() in key.lower():
+                self.getfiTQunTruth = config[arch].getboolean(key)
             elif 'NetworkArchitecture'.lower() in key.lower():
                 self.arch = config[arch][key]
             elif 'mlPath'.lower() in key.lower():
                 ml_path = config[arch][key]
                 self.mlPath = ml_path
+
+            elif 'doVarPlots'.lower() in key.lower():
+                self.doVarPlots = config[arch].getboolean(key)
+            elif 'doOutputPlots'.lower() in key.lower():
+                self.doOutputPlots = config[arch].getboolean(key)
+
+            elif 'MLMCPath'.lower() in key.lower():
+                MLMC_path = config[arch][key]
+                self.MLMCPath = MLMC_path
+            elif 'MLDataPath'.lower() in key.lower():
+                MLData_path = config[arch][key]
+                self.MLDataPath = MLData_path
+
+            elif 'MLMCsubeventInfo'.lower() in key.lower():
+                MLMCsubeventInfo = config[arch][key]
+                self.MLMCsubeventInfo = MLMCsubeventInfo
+            elif 'MLDatasubeventInfo'.lower() in key.lower():
+                MLDatasubeventInfo = config[arch][key]
+                self.MLDatasubeventInfo = MLDatasubeventInfo
+
+            elif 'aux_MLMCPos'.lower() in key.lower():
+                aux_MLMCPos = config[arch][key]
+                self.aux_MLMCPos = aux_MLMCPos
+            elif 'aux_MLDataPos'.lower() in key.lower():
+                aux_MLDataPos = config[arch][key]
+                self.aux_MLDataPos = aux_MLDataPos
+            elif 'aux_MLMCDir'.lower() in key.lower():
+                aux_MLMCDir = config[arch][key]
+                self.aux_MLMCDir = aux_MLMCDir
+            elif 'aux_MLDataDir'.lower() in key.lower():
+                aux_MLDataDir = config[arch][key]
+                self.aux_MLDataDir = aux_MLDataDir
+            elif 'aux_MLMCMom'.lower() in key.lower():
+                aux_MLMCMom = config[arch][key]
+                self.aux_MLMCMom = aux_MLMCMom
+            elif 'aux_MLDataMom'.lower() in key.lower():
+                aux_MLDataMom = config[arch][key]
+                self.aux_MLDataMom = aux_MLDataMom
+
+            elif 'FQMCPath'.lower() in key.lower():
+                FQMC_path = config[arch][key]
+                self.FQMCPath = FQMC_path
+            elif 'FQDataPath'.lower() in key.lower():
+                FQData_path = config[arch][key]
+                self.FQDataPath = FQData_path
+            elif 'FQMCSecondariesPath'.lower() in key.lower():
+                FQMC_secondaries_path = config[arch][key]
+                self.FQMCSecondariesPath = FQMC_secondaries_path
+            elif 'FQDataSecondariesPath'.lower() in key.lower():
+                FQData_secondaries_path = config[arch][key]
+                self.FQDataSecondariesPath = FQData_secondaries_path
+
             elif 'fitqunPath'.lower() in key.lower():
                 fitqun_path = config[arch][key]
                 self.fitqunPath = fitqun_path

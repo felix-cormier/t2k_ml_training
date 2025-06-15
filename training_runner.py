@@ -207,7 +207,6 @@ if args.doEvaluation:
     settings = utils()
     settings.outputPath = args.evaluationOutputDir
     settings.set_output_directory()
-    default_call = ["python", "WatChMaL/main.py", "--config-name=t2k_resnet_eval"] 
     indicesFile = check_list_and_convert(settings.indicesFile)
     perm_output_path = settings.outputPath
 
