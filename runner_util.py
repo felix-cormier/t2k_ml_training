@@ -71,7 +71,7 @@ def electron_shower_depth(energy):
     return 36*(np.log(energy/10.))/(log(2)) 
 
 
-def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/', seed=0, nfolds=3, fully_contained=False):
+def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/', seed=0, nfolds=3, fully_contained=False, classification=False, keep_label=None):
     """Outputs indices to split h5 files into train/test/val 
 
     Args:
@@ -107,10 +107,11 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
     #Keep only electrons
     #indices_to_keep = np.array(range(len(dwall_cut)))[np.where(np.ravel(h5py.File(h5_file,mode='r')['labels'])==1)]
     indices_to_keep = np.array(range(len(dwall_cut)))
-    #print(indices_to_keep)
     
     with h5py.File(h5_file, mode='r') as h5fw:
         # select indices only with 'keep_event' == True (if key exists), instead of keeping all events
+        labels = np.array(h5fw['labels'])
+        print(f"LABELS: {np.unique(labels, return_counts=True)}")
         if fully_contained:
             print("Running fully contained")
             labels = np.array(h5fw['labels'])
@@ -127,19 +128,28 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
             ranges[(labels==1)] = lq(momenta[(labels==1)], range_fit_params[1][0], range_fit_params[1][1], range_fit_params[1][2])
             e_shower_depth[(labels==1)] = electron_shower_depth(energies[labels==1])
             ranges[labels==1] = np.maximum(ranges[labels==1], e_shower_depth[labels==1])
-            towall = math.towall(np.squeeze(h5fw['positions']), np.array(h5fw['angles']), tank_axis = 2)
+
+            positions = h5fw['positions']
+
+            towall = math.towall(np.squeeze(positions), np.array(h5fw['angles']), tank_axis = 2)
 
 
             print(momenta[(labels==0) | (labels==2)])
             print(f"RANGES: {ranges}")
             print(f"LABELS: {labels}")
-            towall_compare = towall > 2*ranges
+            #If towall is too low to fully contain, except if it started outside volume
+            print(positions.shape)
+            print(np.squeeze(positions).shape)
+            towall_compare = (towall > ranges) | (np.abs(np.squeeze(positions)[:,2] > 1810)) | (np.sqrt(np.square(np.squeeze(positions)[:,0]) + np.square(np.squeeze(positions)[:,1]) ) > 1590)
+            print((np.squeeze(positions)[:,2])[np.squeeze(positions)[:,2] > 1810])
+            print(towall_compare[np.squeeze(positions)[:,2] > 1810])
 
             #print(np.unique(towall_compare, return_counts=True))
 
             #print(f"towall: {towall[towall_compare==False]}")
             #print(f"range: {ranges[towall_compare==False]}")
             #print(f"momenta: {momenta[towall_compare==False]}")
+        print(h5fw.keys())
         if 'keep_event' in h5fw.keys():
             print(f'NEW! WARNING: Removing additional events to flatten truth visible energy distribution')
 
@@ -148,14 +158,17 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
 
             keep_bool = np.array(h5fw['keep_event'])
             print(np.unique(keep_bool,return_counts=True))
-            print(np.unique(towall_compare,return_counts=True))
-            print(np.unique(labels,return_counts=True))
             if fully_contained:
-                indices_to_keep = np.where(np.logical_and(np.logical_and(np.logical_and(towall_compare == True, towall_compare==True),labels==1), nhits > 200))[0] 
-                generic_histogram(towall, 'Towall [cm]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'towall_noCuts', range = [0,5000], y_name = "a.u.", label="No Cuts", bins=20, doNorm=True)
-                generic_histogram(towall[indices_to_keep], 'Towall [cm]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'towall_rangeCut', range = [0,5000], y_name = "a.u.", label="Range Cut", bins=20, doNorm=True)
-                generic_histogram(momenta, 'Truth Visible Momentum [MeV]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'truth_vm_noCuts', range=[50,2000], y_name = "a.u.", label="No Cuts", bins=40, doNorm=True)
-                generic_histogram(momenta[indices_to_keep], 'Truth Visible Momentum [MeV]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'truth_vm_rangeCut', range=[50,2000], y_name = "a.u.", label="Range Cut", bins=40, doNorm=True)
+                print(np.unique(towall_compare,return_counts=True))
+                print(np.unique(labels,return_counts=True))
+            if fully_contained and keep_label is not None:
+                indices_to_keep = np.where(np.logical_and(np.logical_and(np.logical_and(energies < 2000, towall_compare==True), nhits > 200), labels==keep_label))[0] 
+                print(f"INDICES TO KEEP 1: {indices_to_keep}")
+                print("1")
+                #generic_histogram(towall, 'Towall [cm]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'towall_noCuts', range = [0,5000], y_name = "a.u.", label="No Cuts", bins=20, doNorm=True)
+                #generic_histogram(towall[indices_to_keep], 'Towall [cm]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'towall_rangeCut', range = [0,5000], y_name = "a.u.", label="Range Cut", bins=20, doNorm=True)
+                #generic_histogram(momenta, 'Truth Visible Momentum [MeV]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'truth_vm_noCuts', range=[50,2000], y_name = "a.u.", label="No Cuts", bins=40, doNorm=True)
+                #generic_histogram(momenta[indices_to_keep], 'Truth Visible Momentum [MeV]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'truth_vm_rangeCut', range=[50,2000], y_name = "a.u.", label="Range Cut", bins=40, doNorm=True)
             else:
                 #indices_to_keep = np.where(np.logical_and(np.logical_and(keep_bool == True, labels==1), nhits > 200))[0] 
                 indices_to_keep = np.where(np.logical_and(keep_bool == True, nhits > 200))[0] 
@@ -166,7 +179,8 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
             events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
             print(events_hits_index)
             nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
-            indices_to_keep = np.where(np.logical_and(np.logical_and(towall_compare==True, labels==1), nhits>200))
+            indices_to_keep = np.where(np.logical_and(np.logical_and(energies< 2000, np.logical_and(towall_compare==True, labels==1)), nhits>200))
+            print("ENERGIES < 2000 MeV")
         #Keep all    
 
         else:
@@ -221,7 +235,7 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
     else:
         kf = KFold(n_splits=nfolds, shuffle=True, random_state=seed)
         for i, (train_rootfile_indices, test_index) in enumerate(kf.split(range(length_rootfiles))):
-            split = train_test_split(test_index, train_size=0.5, shuffle=True, random_state=seed)
+            split = train_test_split(test_index, train_size=0.9, shuffle=True, random_state=seed)
             val_rootfile_indices = split[0]
             test_rootfile_indices = split[1]
             train_indices = np.isin(unique_inverse, train_rootfile_indices)
@@ -256,12 +270,113 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
 
 
             print(f"Fold {i}")
-            print(np.unique(np.ravel(labels)[train_indices], return_counts=True))
-            print(np.unique(np.ravel(labels)[val_indices],return_counts=True))
-            print(np.unique(np.ravel(labels)[test_indices],return_counts=True))
+            unique_labels_train, unique_counts_train = np.unique(np.ravel(labels)[train_indices], return_counts=True)
+            unique_labels_val, unique_counts_val = np.unique(np.ravel(labels)[val_indices], return_counts=True)
+            unique_labels_test, unique_counts_test = np.unique(np.ravel(labels)[test_indices], return_counts=True)
+            if classification:
+                print("Pre-shortening")
+            print(f"Training unique labels: {unique_labels_train}, unique counts: {unique_counts_train}")
+            print(f"Validation unique labels: {unique_labels_val}, unique counts: {unique_counts_val}")
+            print(f"Testing unique labels: {unique_labels_test}, unique counts: {unique_counts_test}")
+            if classification:
+                print("Post-shortening")
+                print("ASSUMING 3 CLASS CLASSIFICATION (0,1,2)")
+
+                keep_labels = np.array(labels)[np.array(train_indices)]
+                print(f"keep_labels: {keep_labels}")
+                unique_labels, unique_counts = np.unique(np.ravel(keep_labels), return_counts=True)
+                print(f"unique_labels: {unique_labels}, unique_counts: {unique_counts}")
+                min_labels = np.amin(unique_counts)
+                print(min_labels)
+                print(f"0 label indices_to_keep: {train_indices[keep_labels==0]}")
+                e_min = np.random.choice(train_indices[keep_labels==0],min_labels)
+                print(f"e_min: {e_min}")
+                mu_min = np.random.choice(train_indices[keep_labels==1],min_labels)
+                print(f"mu_min: {mu_min}")
+                pi_min = np.random.choice(train_indices[keep_labels==2],min_labels)
+                print(f"pi_min: {pi_min}")
+                train_indices = np.concatenate([e_min, mu_min, pi_min])
+                print(f"FINAL INDCIES: {train_indices}")
+
+                keep_labels = np.array(labels)[np.array(test_indices)]
+                print(f"keep_labels: {keep_labels}")
+                unique_labels, unique_counts = np.unique(np.ravel(keep_labels), return_counts=True)
+                print(f"unique_labels: {unique_labels}, unique_counts: {unique_counts}")
+                min_labels = np.amin(unique_counts)
+                print(min_labels)
+                print(f"0 label indices_to_keep: {test_indices[keep_labels==0]}")
+                e_min = np.random.choice(test_indices[keep_labels==0],min_labels)
+                print(f"e_min: {e_min}")
+                mu_min = np.random.choice(test_indices[keep_labels==1],min_labels)
+                print(f"mu_min: {mu_min}")
+                pi_min = np.random.choice(test_indices[keep_labels==2],min_labels)
+                print(f"pi_min: {pi_min}")
+                test_indices = np.concatenate([e_min, mu_min, pi_min])
+                print(f"FINAL INDCIES: {test_indices}")
+
+                keep_labels = np.array(labels)[np.array(val_indices)]
+                print(f"keep_labels: {keep_labels}")
+                unique_labels, unique_counts = np.unique(np.ravel(keep_labels), return_counts=True)
+                print(f"unique_labels: {unique_labels}, unique_counts: {unique_counts}")
+                min_labels = np.amin(unique_counts)
+                print(min_labels)
+                print(f"0 label indices_to_keep: {val_indices[keep_labels==0]}")
+                e_min = np.random.choice(val_indices[keep_labels==0],min_labels)
+                print(f"e_min: {e_min}")
+                mu_min = np.random.choice(val_indices[keep_labels==1],min_labels)
+                print(f"mu_min: {mu_min}")
+                pi_min = np.random.choice(val_indices[keep_labels==2],min_labels)
+                print(f"pi_min: {pi_min}")
+                val_indices = np.concatenate([e_min, mu_min, pi_min])
+                print(f"FINAL INDCIES: {val_indices}")
+
+
+
+
+                unique_labels_train, unique_counts_train = np.unique(np.ravel(labels)[train_indices], return_counts=True)
+                print("9")
+                unique_labels_val, unique_counts_val = np.unique(np.ravel(labels)[val_indices], return_counts=True)
+                print("10")
+                unique_labels_test, unique_counts_test = np.unique(np.ravel(labels)[test_indices], return_counts=True)
+                print(f"Training unique labels: {unique_labels_train}, unique counts: {unique_counts_train}")
+                print(f"Validation unique labels: {unique_labels_val}, unique counts: {unique_counts_val}")
+                print(f"Testing unique labels: {unique_labels_test}, unique counts: {unique_counts_test}")
+                '''
+                min_train = np.amin(unique_counts_train)
+                print(train_indices)
+                print(train_indices.shape)
+                print(np.ravel(train_indices).shape)
+                new_train_indices = np.concatenate([np.random.choice(np.ravel(train_indices[labels[train_indices]==0]), min_train, replace=False), np.random.choice(np.ravel(train_indices[labels[train_indices]==1]), min_train, replace=False), np.random.choice(np.ravel(train_indices[labels[train_indices]==2]), min_train, replace=False)])
+                print("1")
+                train_indices = np.random.shuffle(np.ravel(new_train_indices))
+                print("2")
+
+                min_val = np.amin(unique_counts_val)
+                print("3")
+                new_val_indices = np.concatenate([np.random.choice(np.ravel(val_indices[labels[val_indices]==0]), min_val, replace=False), np.random.choice(np.ravel(val_indices[labels[val_indices]==1]), min_val, replace=False), np.random.choice(np.ravel(val_indices[labels[val_indices]==2]), min_val, replace=False)])
+                print("4")
+                val_indices = np.random.shuffle(np.ravel(new_val_indices))
+                print("5")
+
+                min_test = np.amin(unique_counts_test)
+                print("6")
+                new_test_indices = np.concatenate([np.random.choice(np.ravel(test_indices[labels[test_indices]==0]), min_test, replace=False), np.random.choice(np.ravel(test_indices[labels[test_indices]==1]), min_test, replace=False), np.random.choice(np.ravel(test_indices[labels[test_indices]==2]), min_test, replace=False)])
+                print("7")
+                test_indices = np.random.shuffle(np.ravel(new_test_indices))
+                print("8")
+
+                '''
             #print(f'TOTAL: {np.unique(np.ravel(labels)[train_indices], return_counts=True)[1][0] + np.unique(np.ravel(labels)[val_indices],return_counts=True)[1][0] + np.unique(np.ravel(labels)[test_indices],return_counts=True)[1][0]}')
             print(output_path)
-            np.savez(output_path + 'train_val_test_gt200Hits_fullyContained_nFolds'+str(nfolds)+'_fold'+str(i)+'.npz',
+            label_string=''
+            if keep_label is not None:
+                if keep_label == 0:
+                    label_string = '_MuonsOnly'
+                if keep_label == 1:
+                    label_string = '_ElectronsOnly'
+                if keep_label == 2:
+                    label_string = '_PiPlusOnly'
+            np.savez(output_path + 'train_val_test_gt200Hits_fcM50_2000MeVCut'+label_string+'_nFolds'+str(nfolds)+'_fold'+str(i)+'.npz',
                     test_idxs=test_indices, val_idxs=val_indices, train_idxs=train_indices)
 
 

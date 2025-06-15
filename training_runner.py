@@ -13,10 +13,6 @@ import itertools
 import subprocess
 
 
-#from analysis.classification import WatChMaLClassification
-#from analysis.classification import plot_efficiency_profile
-#from analysis.utils.plotting import plot_legend
-import WatChMaL.analysis.utils.math as math
 
 from analyze_output.analyze_regression import analyze_regression
 from analyze_output.analyze_classification import analyze_classification
@@ -40,6 +36,7 @@ parser.add_argument("--doQuickPlots", help="Make performance plots", action="sto
 parser.add_argument("--doAnalysis", help="run analysis of ml and/or fitqun", action="store_true")
 parser.add_argument("--doIndices", help="create train/val/test indices file", action="store_true")
 parser.add_argument("--testParser", help="run training", action="store_true")
+parser.add_argument("--overwrite_output_path", help="overwrite where training gets output", action="store_true")
 parser.add_argument("--plotInput", help="run training")
 parser.add_argument("--comparisonFolder", help="run training")
 parser.add_argument("--numFolds", help="run training")
@@ -50,6 +47,7 @@ parser.add_argument("--indicesOutputPath", help="run training")
 parser.add_argument("--plotOutput", help="run training")
 parser.add_argument("--training_input", help="where training files are")
 parser.add_argument("--training_output_path", help="where to dump training output")
+parser.add_argument("--trainingOutputDir", help="where overwritten training gets output")
 args = parser.parse_args(['--training_input','foo','@args_training.txt',
                             '--plotInput','foo','@args_training.txt',
                             '--comparisonFolder','foo','@args_training.txt',
@@ -58,6 +56,7 @@ args = parser.parse_args(['--training_input','foo','@args_training.txt',
                             '--indicesOutputPath','foo','@args_training.txt',
                             '--evaluationInputDir','foo','@args_training.txt',
                             '--evaluationOutputDir','foo','@args_training.txt',
+                            '--trainingOutputDir','foo','@args_training.txt',
                             '--numFolds','foo','@args_training.txt',
                             '--training_output_path','foo','@args_training.txt'])
 logger = logging.getLogger('train')
@@ -124,6 +123,9 @@ def init_training():
         dt_string = now.strftime("%d%m%Y-%H%M%S")
         #dt_string = '20092023-101855'
         settings.outputPath = perm_output_path+'/'+dt_string+'/'
+        if args.overwrite_output_path:
+            print(f"Overwriting output path to: {args.trainingOutputDir}")
+            settings.outputPath = args.trainingOutputDir
         print(f'TRAINING WITH\n input file: {x[1]} \n indices file: {x[0]}\n learning rate: {x[2]}\n learning rate decay: {x[4]}\n weight decay: {x[3]}\n feature extractor: {x[5]}\n output path: {settings.outputPath}')
         default_call.append("data.split_path="+x[0])
         default_call.append("data.dataset.h5file="+x[1])
@@ -189,7 +191,7 @@ def end_training(settings, variable_list=[], variables=[]):
 #    compare_outputs(args.comparisonFolder)
 
 if args.doIndices:
-    make_split_file(args.indicesInput, train_val_test_split=[0.05,0.05], output_path=args.indicesOutputPath, nfolds=args.numFolds, seed=0, fully_contained=True)
+    make_split_file(args.indicesInput, train_val_test_split=[0.05,0.05], output_path=args.indicesOutputPath, nfolds=args.numFolds, seed=0, fully_contained=True, classification=False)
 
 #settings = utils()
 #kernel_size = settings.kernel

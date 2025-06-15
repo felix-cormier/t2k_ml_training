@@ -1,12 +1,7 @@
-<<<<<<< HEAD
 --doTraining
+--trainingOutputDir=/scratch/fcormier/t2k/ml/training/resnet_sep28_muons_momentum_noDeadPMTs_seed_gt200Hits_fullyContained_4p5MNewData_timeO400S1000_2/12102024-044830/
 --numFolds=30
---indicesInput=/scratch/fcormier/t2k/ml/output_skdetsim/aug19_electrons_2GeV_2M_combine/multi_combine.hy
---indicesOutputPath=/scratch/fcormier/t2k/ml/output_skdetsim/aug19_electrons_2GeV_2M_combine/
+--indicesInput=/scratch/fcormier//t2k/ml/output_skdetsim//jun12_electronsCombine_1//multi_combine.hy
+--indicesOutputPath=/scratch/fcormier//t2k/ml/output_skdetsim//jun12_electronsCombine_1/
 --evaluationInputDir=/fast_scratch/fcormier/t2k/ml/training/resnet_mar22_reg_electrons_pos_g200Hits_scheduler_scan_5M_1/22032024-142255/
 --evaluationOutputDir=/fast_scratch/fcormier/t2k/ml/training/resnet_mar22_reg_electrons_pos_g200Hits_scheduler_scan_5M_1/22032024-142255/
---comparisonFolder=/fast_scratch/fcormier/t2k/ml/training/oct20_aferreira_combine_flatE/
---plotInput=/fast_scratch/fcormier/t2k/ml/training/resnet_emu_weightDecay_sep13_test_1/
---plotOutput=output/resnet_emu_weightDecay_sep13_test_1/
---training_input=data/training_paths.txt
---training_output_path=/fast_scratch/jsholdice/train_out/

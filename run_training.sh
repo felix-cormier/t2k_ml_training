@@ -3,6 +3,7 @@
 cd /home/fcormier/t2k/ml/training/t2k_ml_training/
 
 source setup.sh
+echo $PYTHONPATH
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_GPU
 export HYDRA_FULL_ERROR=1
 
