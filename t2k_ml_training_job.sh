@@ -6,7 +6,7 @@
 #SBATCH --ntasks-per-node=32
 #SBATCH --exclusive
 #SBATCH --mem=192000M  # memory per no
-#SBATCH --time=2-11:00
+#SBATCH --time=5-00:00
 export OMP_NUM_THREADS=$SLURM_NTASKS_PER_NODE
 export HYDRA_FULL_ERROR=1
 
@@ -26,9 +26,9 @@ export HYDRA_FULL_ERROR=1
 #New 3-class
 #cp /scratch/fcormier/t2k/ml/output_skdetsim/may4_2025_eMuPiPlus_combine_2/multi_combine.hy $SLURM_TMPDIR
 #New muons
-#cp /scratch/fcormier/t2k/ml/output_skdetsim/may29_2025_muons_pg_combine_1/multi_combine.hy $SLURM_TMPDIR
+cp /scratch/fcormier/t2k/ml/output_skdetsim/may29_2025_muons_pg_combine_1/multi_combine.hy $SLURM_TMPDIR
 #New electrons
-cp /scratch/fcormier//t2k/ml/output_skdetsim//jun12_electronsCombine_1/multi_combine.hy $SLURM_TMPDIR
+#cp /scratch/fcormier//t2k/ml/output_skdetsim//jun12_electronsCombine_1/multi_combine.hy $SLURM_TMPDIR
 #cp /scratch/fcormier/t2k/ml/output_skdetsim/oct11_eMuPosPions_2GeV_seed_1M_combine_1/multi_combine.hy $SLURM_TMPDIR
 
 module load StdEnv/2023
