@@ -199,19 +199,19 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
             nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
             indices_to_keep = np.where(np.logical_and(np.logical_and(energies< 2000, np.logical_and(towall_compare==True, labels==1)), nhits>200))
             print("ENERGIES < 2000 MeV")
-        #Keep all    
+            #Keep all    
 
 
-                print(momenta[(labels==0) | (labels==2)])
-                print(f"RANGES: {ranges}")
-                print(f"LABELS: {labels}")
-                towall_compare = towall > 2*ranges
+            print(momenta[(labels==0) | (labels==2)])
+            print(f"RANGES: {ranges}")
+            print(f"LABELS: {labels}")
+            towall_compare = towall > 2*ranges
 
-                #print(np.unique(towall_compare, return_counts=True))
+            #print(np.unique(towall_compare, return_counts=True))
 
-                #print(f"towall: {towall[towall_compare==False]}")
-                #print(f"range: {ranges[towall_compare==False]}")
-                #print(f"momenta: {momenta[towall_compare==False]}")
+            #print(f"towall: {towall[towall_compare==False]}")
+            #print(f"range: {ranges[towall_compare==False]}")
+            #print(f"momenta: {momenta[towall_compare==False]}")
             if stopMu:
                 events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
                 nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
@@ -259,25 +259,25 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
                 print(indices_to_keep)
                 #print(f'itk length after: {indices_to_keep[0].shape}')
                 #print(np.unique(nhits > 1000, return_counts=True))
-    else:
-        length = len(h5py.File(h5_file,mode='r')['event_hits_index'])
-        print(f"Initial size of sample: {length}")
-        with h5py.File(h5_file, mode='r') as h5fw:
-            labels = np.array(h5fw['labels'])
-            unique_root_files, unique_inverse, unique_counts = np.unique(h5py.File(h5_file,mode='r')['root_files'], return_inverse=True, return_counts=True)
-            indices_to_keep = np.array(range(length))
-            events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
-            nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
-            print(f"NHITS: {nhits}")
-            total_charge = np.array([part.sum() for part in np.split(h5fw['hit_charge'], np.cumsum(nhits))[:-1]])
-            energies = np.squeeze(h5fw['energies'])
-            plt.hist2d(energies, total_charge, bins=[100,100], range = [[0,2000],[0,20000]])
-            plt.savefig("plots/mcData_indices_test.png")
-            print(f"total_charge: {total_charge}, min total charge: {np.amin(total_charge)}")
-            indices_to_keep = np.squeeze(np.where(np.logical_and(np.logical_and(total_charge < 15000,nhits>200), total_charge > 1000)))
-            plt.hist2d(energies[indices_to_keep], total_charge[indices_to_keep], bins=[100,100], range = [[0,2000],[0,20000]])
-            plt.savefig("plots/mcData_indices_test.png")
-            print(f"Size after nhits and total charge reduction: {len(indices_to_keep)}")
+        else:
+            length = len(h5py.File(h5_file,mode='r')['event_hits_index'])
+            print(f"Initial size of sample: {length}")
+            with h5py.File(h5_file, mode='r') as h5fw:
+                labels = np.array(h5fw['labels'])
+                unique_root_files, unique_inverse, unique_counts = np.unique(h5py.File(h5_file,mode='r')['root_files'], return_inverse=True, return_counts=True)
+                indices_to_keep = np.array(range(length))
+                events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
+                nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
+                print(f"NHITS: {nhits}")
+                total_charge = np.array([part.sum() for part in np.split(h5fw['hit_charge'], np.cumsum(nhits))[:-1]])
+                energies = np.squeeze(h5fw['energies'])
+                plt.hist2d(energies, total_charge, bins=[100,100], range = [[0,2000],[0,20000]])
+                plt.savefig("plots/mcData_indices_test.png")
+                print(f"total_charge: {total_charge}, min total charge: {np.amin(total_charge)}")
+                indices_to_keep = np.squeeze(np.where(np.logical_and(np.logical_and(total_charge < 15000,nhits>200), total_charge > 1000)))
+                plt.hist2d(energies[indices_to_keep], total_charge[indices_to_keep], bins=[100,100], range = [[0,2000],[0,20000]])
+                plt.savefig("plots/mcData_indices_test.png")
+                print(f"Size after nhits and total charge reduction: {len(indices_to_keep)}")
         print(f"DOING MC/DATA")
                 
     

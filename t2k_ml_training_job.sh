@@ -1,11 +1,10 @@
 #!/bin/bash
 #SBATCH --account=def-blairt2k_gpu
-#SBATCH --output=/project/rpp-blairt2k/fcormier/t2k/ml/logfiles/%x.%A.out
-#SBATCH --error=/project/rpp-blairt2k/fcormier/t2k/ml/logfiles/%x.%A.err
-#SBATCH --gpus-per-node=v100l:4         # Number of GPU(s) per node
-#SBATCH --ntasks-per-node=32
-#SBATCH --exclusive
-#SBATCH --mem=192000M  # memory per no
+#SBATCH --output=/project/def-mhartz/fcormier/t2k/ml/logfiles/%x.%A.out
+#SBATCH --error=/project/def-mhartz/fcormier/t2k/ml/logfiles/%x.%A.err
+#SBATCH --gpus-per-node=a100:4         # Number of GPU(s) per node
+#SBATCH --cpus-per-gpu=12         # CPU cores/threads
+#SBATCH --mem=320000M               # memory per node
 #SBATCH --time=5-00:00
 export OMP_NUM_THREADS=$SLURM_NTASKS_PER_NODE
 export HYDRA_FULL_ERROR=1
@@ -36,4 +35,4 @@ module load apptainer/1.2.4
 
 
 export APPTAINER_BINDPATH="/scratch/,/localscratch/"
-apptainer exec --nv /project/rpp-blairt2k/machine_learning/containers/container_base_ml_v3.0.0.sif bash "/home/fcormier/t2k/ml/training/t2k_ml_training/run_training.sh"
+apptainer exec --nv /project/def-blairt2k/fcormier/machine_learning/containers/container_base_ml_v3.0.0.sif bash "/home/fcormier/t2k/ml/t2k_ml_training/run_training.sh"
