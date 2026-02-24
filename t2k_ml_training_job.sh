@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --account=def-blairt2k_gpu
+#SBATCH --account=rpp-blairt2k_gpu
 #SBATCH --output=/project/rpp-blairt2k/fcormier/t2k/ml/logfiles/%x.%A.out
 #SBATCH --error=/project/rpp-blairt2k/fcormier/t2k/ml/logfiles/%x.%A.err
-#SBATCH --gpus-per-node=v100l:4         # Number of GPU(s) per node
+#SBATCH --gpus-per-node=h100:4         # Number of GPU(s) per node
 #SBATCH --ntasks-per-node=32
 #SBATCH --exclusive
 #SBATCH --mem=192000M  # memory per no
@@ -26,9 +26,9 @@ export HYDRA_FULL_ERROR=1
 #New 3-class
 #cp /scratch/fcormier/t2k/ml/output_skdetsim/may4_2025_eMuPiPlus_combine_2/multi_combine.hy $SLURM_TMPDIR
 #New muons
-cp /scratch/fcormier/t2k/ml/output_skdetsim/may29_2025_muons_pg_combine_1/multi_combine.hy $SLURM_TMPDIR
+#cp /scratch/fcormier/t2k/ml/output_skdetsim/may29_2025_muons_pg_combine_1/multi_combine.hy $SLURM_TMPDIR
 #New electrons
-#cp /scratch/fcormier//t2k/ml/output_skdetsim//jun12_electronsCombine_1/multi_combine.hy $SLURM_TMPDIR
+cp /scratch/fcormier//t2k/ml/output_skdetsim//jun12_electronsCombine_1/multi_combine.hy $SLURM_TMPDIR
 #cp /scratch/fcormier/t2k/ml/output_skdetsim/oct11_eMuPosPions_2GeV_seed_1M_combine_1/multi_combine.hy $SLURM_TMPDIR
 
 module load StdEnv/2023
