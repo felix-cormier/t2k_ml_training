@@ -1,5 +1,5 @@
 --doTraining
---trainingOutputDir=/scratch/fcormier/t2k/ml/training/resnet_sep28_muons_momentum_noDeadPMTs_seed_gt200Hits_fullyContained_4p5MNewData_timeO400S1000_2/12102024-044830/
+--trainingOutputDir=/scratch/fcormier/t2k/ml/training/resnet_jul4_muon_regression_positions_outside5Penalty_noDeadPMTs_seed_gt200Hits_flatVE_6MMNewData_10kVal_timeO400S1000_copy_1/04072025-040455/
 --numFolds=30
 --indicesInput=/scratch/fcormier//t2k/ml/output_skdetsim//jun12_electronsCombine_1//multi_combine.hy
 --indicesOutputPath=/scratch/fcormier//t2k/ml/output_skdetsim//jun12_electronsCombine_1/

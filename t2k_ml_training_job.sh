@@ -36,4 +36,4 @@ module load apptainer/1.2.4
 
 
 export APPTAINER_BINDPATH="/scratch/,/localscratch/"
-apptainer exec --nv /project/rpp-blairt2k/machine_learning/containers/container_base_ml_v3.0.0.sif bash "/home/fcormier/t2k/ml/training/t2k_ml_training/run_training.sh"
+apptainer exec --nv /project/def-blairt2k/fcormier/machine_learning/containers/container_base_ml_v3.0.0.sif bash "/home/fcormier/t2k/ml/t2k_ml_training/run_training.sh"

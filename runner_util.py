@@ -278,7 +278,6 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
                 plt.hist2d(energies[indices_to_keep], total_charge[indices_to_keep], bins=[100,100], range = [[0,2000],[0,20000]])
                 plt.savefig("plots/mcData_indices_test.png")
                 print(f"Size after nhits and total charge reduction: {len(indices_to_keep)}")
-            print(f"DOING MC/DATA")
                 
     
     print(f'indices to keep: {len(indices_to_keep)}')
