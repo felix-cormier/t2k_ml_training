@@ -89,7 +89,7 @@ def electron_shower_depth(energy):
     return 36*(np.log(energy/10.))/(log(2)) 
 
 
-def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/', seed=0, nfolds=3, fully_contained=False, stopMu=False, mcData=False, testOnly=False):
+def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/', seed=0, nfolds=3, fully_contained=False, stopMu=False, mcData=False, testOnly=False, classification=False, keep_label=None):
     """Outputs indices to split h5 files into train/test/val 
 
     Args:
@@ -101,6 +101,7 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
     """
     #Check if you can actually do the number of folds requested
     nfolds = int(nfolds)
+    print(h5_file)
     print(f'nfolds: {nfolds}, nfolds type: {type(nfolds)}')
     """
     if (1.0-train_val_test_split[0]-train_val_test_split[1])*int(nfolds) > 1:
@@ -127,6 +128,10 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
     indices_to_keep = np.array(range(len(dwall_cut)))
     
     with h5py.File(h5_file, mode='r') as h5fw:
+        # Compute nhits for all events once at the beginning
+        events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
+        nhits = events_hits_index[1:] - events_hits_index[:-1]
+        
         # select indices only with 'keep_event' == True (if key exists), instead of keeping all events
         labels = np.array(h5fw['labels'])
         print(f"LABELS: {np.unique(labels, return_counts=True)}")
@@ -171,16 +176,13 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
         if 'keep_event' in h5fw.keys():
             print(f'NEW! WARNING: Removing additional events to flatten truth visible energy distribution')
 
-            events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
-            nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
-
             keep_bool = np.array(h5fw['keep_event'])
             print(np.unique(keep_bool,return_counts=True))
             if fully_contained:
                 print(np.unique(towall_compare,return_counts=True))
                 print(np.unique(labels,return_counts=True))
             if fully_contained and keep_label is not None:
-                indices_to_keep = np.where(np.logical_and(np.logical_and(np.logical_and(energies < 2000, towall_compare==True), nhits > 200), labels==keep_label))[0] 
+                indices_to_keep = np.where(np.logical_and(np.logical_and(np.logical_and(energies < 2000, towall_compare==True), nhits > 100), labels==keep_label))[0] 
                 print(f"INDICES TO KEEP 1: {indices_to_keep}")
                 print("1")
                 #generic_histogram(towall, 'Towall [cm]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'towall_noCuts', range = [0,5000], y_name = "a.u.", label="No Cuts", bins=20, doNorm=True)
@@ -189,16 +191,12 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
                 #generic_histogram(momenta[indices_to_keep], 'Truth Visible Momentum [MeV]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'truth_vm_rangeCut', range=[50,2000], y_name = "a.u.", label="Range Cut", bins=40, doNorm=True)
             else:
                 #indices_to_keep = np.where(np.logical_and(np.logical_and(keep_bool == True, labels==1), nhits > 200))[0] 
-                indices_to_keep = np.where(np.logical_and(keep_bool == True, nhits > 200))[0] 
+                indices_to_keep = np.where(np.logical_and(keep_bool == True, nhits > 100))[0] 
                 print("KEEP EVENT AND NOT FULLY CONTAINED")
             print(nhits)
             #indices_to_keep = np.where(keep_bool == True)[0] 
         elif fully_contained:
-            events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
-            print(events_hits_index)
-            nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
-            indices_to_keep = np.where(np.logical_and(np.logical_and(energies< 2000, np.logical_and(towall_compare==True, labels==1)), nhits>200))
-            print("ENERGIES < 2000 MeV")
+            print("Running fully contained - second branch")
             #Keep all    
 
 
@@ -213,49 +211,43 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
             #print(f"range: {ranges[towall_compare==False]}")
             #print(f"momenta: {momenta[towall_compare==False]}")
             if stopMu:
-                events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
-                nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
-                indices_to_keep = np.where(np.logical_and(labels==0,nhits>200))
+                decayE_events_hits_index = np.append(h5fw['event_hits_decayE_index'], h5fw['hit_decayE_pmt'].shape[0])
+                nhits = decayE_events_hits_index[1:] - decayE_events_hits_index[:-1]
+                indices_to_keep = np.where(np.logical_and(labels==0,nhits>10))[0]
             elif 'keep_event' in h5fw.keys():
                 print(f'NEW! WARNING: Removing additional events to flatten truth visible energy distribution')
-
-                events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
-                nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
 
                 keep_bool = np.array(h5fw['keep_event'])
                 print(np.unique(keep_bool,return_counts=True))
                 print(np.unique(towall_compare,return_counts=True))
                 print(np.unique(labels,return_counts=True))
                 if fully_contained:
-                    indices_to_keep = np.where(np.logical_and(np.logical_and(np.logical_and(towall_compare == True, towall_compare==True),labels==1), nhits > 200))[0] 
+                    indices_to_keep = np.where(np.logical_and(np.logical_and(np.logical_and(towall_compare == True, towall_compare==True),labels==1), nhits > 100))[0] 
                     generic_histogram(towall, 'Towall [cm]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'towall_noCuts', range = [0,5000], y_name = "a.u.", label="No Cuts", bins=20, doNorm=True)
                     generic_histogram(towall[indices_to_keep], 'Towall [cm]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'towall_rangeCut', range = [0,5000], y_name = "a.u.", label="Range Cut", bins=20, doNorm=True)
                     generic_histogram(momenta, 'Truth Visible Momentum [MeV]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'truth_vm_noCuts', range=[50,2000], y_name = "a.u.", label="No Cuts", bins=40, doNorm=True)
                     generic_histogram(momenta[indices_to_keep], 'Truth Visible Momentum [MeV]', "/scratch/fcormier/t2k/ml/plots/skdetsim_plots/jun24_muons_2GeV_2M_1/", 'truth_vm_rangeCut', range=[50,2000], y_name = "a.u.", label="Range Cut", bins=40, doNorm=True)
                 else:
                     #indices_to_keep = np.where(np.logical_and(np.logical_and(keep_bool == True, labels==1), nhits > 200))[0] 
-                    indices_to_keep = np.where(np.logical_and(keep_bool == True, nhits > 200))[0] 
+                    indices_to_keep = np.where(np.logical_and(keep_bool == True, nhits > 100))[0] 
                     print("KEEP EVENT AND NOT FULLY CONTAINED")
                 print(nhits)
                 #indices_to_keep = np.where(keep_bool == True)[0] 
             elif fully_contained:
-                events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
-                print(events_hits_index)
-                nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
-                indices_to_keep = np.where(np.logical_and(np.logical_and(towall_compare==True, towall_compare==True), nhits>200))
+                print(indices_to_keep)
+                # nhits already computed at the top - use the full nhits array for all events
+                indices_to_keep = np.where(np.logical_and(np.logical_and(towall_compare==True, towall_compare==True), nhits>100))[0]
                 print("Adding fully contained to cut")
             #Keep all    
 
             else:
                 #indices_to_keep = np.where(np.ravel(h5py.File(h5_file,mode='r')['labels'])==1)
                 indices_to_keep = np.array(range(len(dwall_cut)))
-                events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
                 #print(events_hits_index)
-                nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
                 #print(f'itk length: {len(indices_to_keep)}')
                 print(np.ravel(h5py.File(h5_file,mode='r')['labels'])==0)
                 print("NOT FULLY CONTAINED OR KEEP_EVENT")
-                indices_to_keep = np.where(np.logical_and(np.ravel(h5py.File(h5_file,mode='r')['labels'])==0, nhits > 200))
+                indices_to_keep = np.where(np.logical_and(np.ravel(h5py.File(h5_file,mode='r')['labels'])==0, nhits > 100))[0]
                 print(indices_to_keep)
                 #print(f'itk length after: {indices_to_keep[0].shape}')
                 #print(np.unique(nhits > 1000, return_counts=True))
@@ -266,15 +258,18 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
                 labels = np.array(h5fw['labels'])
                 unique_root_files, unique_inverse, unique_counts = np.unique(h5py.File(h5_file,mode='r')['root_files'], return_inverse=True, return_counts=True)
                 indices_to_keep = np.array(range(length))
-                events_hits_index = np.append(h5fw['event_hits_index'], h5fw['hit_pmt'].shape[0])
-                nhits = (events_hits_index[indices_to_keep+1] - events_hits_index[indices_to_keep]).squeeze()
+                if stopMu:
+                    decayE_events_hits_index = np.append(h5fw['event_hits_decayE_index'], h5fw['hit_decayE_pmt'].shape[0])
+                    decayE_nhits = decayE_events_hits_index[1:] - decayE_events_hits_index[:-1]
+                    indices_to_keep = np.where(np.logical_and(decayE_nhits>10,nhits>10))[0]
+                # nhits already computed at the top of the file
                 print(f"NHITS: {nhits}")
                 total_charge = np.array([part.sum() for part in np.split(h5fw['hit_charge'], np.cumsum(nhits))[:-1]])
                 energies = np.squeeze(h5fw['energies'])
                 plt.hist2d(energies, total_charge, bins=[100,100], range = [[0,2000],[0,20000]])
                 plt.savefig("plots/mcData_indices_test.png")
                 print(f"total_charge: {total_charge}, min total charge: {np.amin(total_charge)}")
-                indices_to_keep = np.squeeze(np.where(np.logical_and(np.logical_and(total_charge < 15000,nhits>200), total_charge > 1000)))
+                indices_to_keep = np.squeeze(np.where(np.logical_and(np.logical_and(total_charge < 20000,nhits>100), total_charge > 0)))
                 plt.hist2d(energies[indices_to_keep], total_charge[indices_to_keep], bins=[100,100], range = [[0,2000],[0,20000]])
                 plt.savefig("plots/mcData_indices_test.png")
                 print(f"Size after nhits and total charge reduction: {len(indices_to_keep)}")
@@ -477,7 +472,7 @@ def make_split_file(h5_file,train_val_test_split=[0.70,0.15], output_path='data/
                     label_string = '_ElectronsOnly'
                 if keep_label == 2:
                     label_string = '_PiPlusOnly'
-            np.savez(output_path + 'train_val_test_gt200Hits_fcM50_2000MeVCut'+label_string+'_nFolds'+str(nfolds)+'_fold'+str(i)+'.npz',
+            np.savez(output_path + 'train_val_test_gt100Hits_fcM50_2000MeVCut'+label_string+'_nFolds'+str(nfolds)+'_fold'+str(i)+'.npz',
                     test_idxs=test_indices, val_idxs=val_indices, train_idxs=train_indices)
 
 

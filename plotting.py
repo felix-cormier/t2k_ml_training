@@ -4,8 +4,8 @@ import os
 
 import h5py
 
-from WatChMaL.analysis.classification import WatChMaLClassification
-from WatChMaL.analysis.classification import plot_efficiency_profile, plot_rocs
+#from WatChMaL.analysis.classification import WatChMaLClassification
+#from WatChMaL.analysis.classification import plot_efficiency_profile, plot_rocs
 from WatChMaL.analysis.utils.plotting import plot_legend
 from WatChMaL.analysis.utils.binning import get_binning
 from WatChMaL.analysis.utils.fitqun import read_fitqun_file, make_fitqunlike_discr, get_rootfile_eventid_hash, plot_fitqun_comparison

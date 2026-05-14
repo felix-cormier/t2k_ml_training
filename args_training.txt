@@ -1,7 +1,7 @@
 --doTraining
 --trainingOutputDir=/scratch/fcormier/t2k/ml/training/resnet_jul4_muon_regression_positions_outside5Penalty_noDeadPMTs_seed_gt200Hits_flatVE_6MMNewData_10kVal_timeO400S1000_copy_1/04072025-040455/
---numFolds=30
---indicesInput=/scratch/fcormier//t2k/ml/output_skdetsim//jun12_electronsCombine_1//multi_combine.hy
---indicesOutputPath=/scratch/fcormier//t2k/ml/output_skdetsim//jun12_electronsCombine_1/
+--numFolds=60
+--indicesInput=/scratch/fcormier/t2k/ml/output_skdetsim/apr29_2026_muons_plusMay29_2025_muons_0to150MeV_additional_combine_1//multi_combine.hy
+--indicesOutputPath=/scratch/fcormier/t2k/ml/output_skdetsim/apr29_2026_muons_plusMay29_2025_muons_0to150MeV_additional_combine_1/
 --evaluationInputDir=/fast_scratch/fcormier/t2k/ml/training/resnet_mar22_reg_electrons_pos_g200Hits_scheduler_scan_5M_1/22032024-142255/
 --evaluationOutputDir=/fast_scratch/fcormier/t2k/ml/training/resnet_mar22_reg_electrons_pos_g200Hits_scheduler_scan_5M_1/22032024-142255/

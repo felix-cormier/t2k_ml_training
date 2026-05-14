@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --account=rpp-blairt2k_gpu
+#SBATCH --account=def-blairt2k_gpu
 #SBATCH --output=/project/rpp-blairt2k/fcormier/t2k/ml/logfiles/%x.%A.out
 #SBATCH --error=/project/rpp-blairt2k/fcormier/t2k/ml/logfiles/%x.%A.err
 #SBATCH --gpus-per-node=h100:4         # Number of GPU(s) per node
 #SBATCH --ntasks-per-node=32
 #SBATCH --exclusive
 #SBATCH --mem=192000M  # memory per no
-#SBATCH --time=5-00:00
+#SBATCH --time=3-00:00
 export OMP_NUM_THREADS=$SLURM_NTASKS_PER_NODE
 export HYDRA_FULL_ERROR=1
 
@@ -27,8 +27,14 @@ export HYDRA_FULL_ERROR=1
 #cp /scratch/fcormier/t2k/ml/output_skdetsim/may4_2025_eMuPiPlus_combine_2/multi_combine.hy $SLURM_TMPDIR
 #New muons
 #cp /scratch/fcormier/t2k/ml/output_skdetsim/may29_2025_muons_pg_combine_1/multi_combine.hy $SLURM_TMPDIR
+#New muons with additional lowE
+cp /scratch/fcormier/t2k/ml/output_skdetsim/apr29_2026_muons_plusMay29_2025_muons_0to150MeV_additional_combine_1//multi_combine.hy $SLURM_TMPDIR
+#Full EMuPiPlus
+#cp /scratch/fcormier/t2k/ml/output_skdetsim/mar8_eMuPiPlus_full_combine_1//multi_combine.hy $SLURM_TMPDIR
 #New electrons
-cp /scratch/fcormier//t2k/ml/output_skdetsim//jun12_electronsCombine_1/multi_combine.hy $SLURM_TMPDIR
+#cp /scratch/fcormier//t2k/ml/output_skdetsim//jun12_electronsCombine_1/multi_combine.hy $SLURM_TMPDIR
+#New No-int 3 class
+#cp /scratch/fcormier/t2k/ml/output_skdetsim/mar4_2026_eMuPiPlus_combo_noInt_2/multi_combine.hy $SLURM_TMPDIR
 #cp /scratch/fcormier/t2k/ml/output_skdetsim/oct11_eMuPosPions_2GeV_seed_1M_combine_1/multi_combine.hy $SLURM_TMPDIR
 
 module load StdEnv/2023
@@ -36,4 +42,4 @@ module load apptainer/1.2.4
 
 
 export APPTAINER_BINDPATH="/scratch/,/localscratch/"
-apptainer exec --nv /project/def-blairt2k/fcormier/machine_learning/containers/container_base_ml_v3.0.0.sif bash "/home/fcormier/t2k/ml/t2k_ml_training/run_training.sh"
+apptainer exec --nv /project/rpp-blairt2k/fcormier/watchmal_tutorial_1/ml_workshop/container_base_ml_workshop.sif bash "/home/fcormier/t2k/ml/training/t2k_ml_training/run_training.sh"
