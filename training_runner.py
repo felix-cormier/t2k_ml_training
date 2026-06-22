@@ -120,8 +120,9 @@ def init_training():
     for x in itertools.product(indicesFile, inputPath, lr, weightDecay, lr_decay, featureExtractor, stride, kernelSize):
         default_call = ["python", "WatChMaL/main.py", "--config-name="+settings.configName] 
         now = datetime.now()
-        dt_string = now.strftime("%d%m%Y-%H%M%S")
-        #dt_string = '20092023-101855'
+        #dt_string = now.strftime("%d%m%Y-%H%M%S")
+        dt_string = '18062026-143736/'
+        print(f"WARNING: hard-coded dt_string to {dt_string}")
         settings.outputPath = perm_output_path+'/'+dt_string+'/'
         if args.overwrite_output_path:
             print(f"Overwriting output path to: {args.trainingOutputDir}")
@@ -210,14 +211,17 @@ if args.doEvaluation:
     indicesFile = check_list_and_convert(settings.indicesFile)
     perm_output_path = settings.outputPath
 
-    default_call = ["python", "WatChMaL/main.py", "--config-name=t2k_resnet_eval"] 
+    default_call = ["python", "WatChMaL/main.py", "--config-name=t2k_resnet_eval_classifier"] 
 
 
     settings.outputPath = args.evaluationInputDir
     default_call.append("hydra.run.dir=" +str(args.evaluationInputDir))
     default_call.append("dump_path=" +str(args.evaluationOutputDir))
     print(default_call)
+    t_start = datetime.now()
     subprocess.call(default_call)
+    t_end = datetime.now()
+    print(f"subprocess.call duration: {t_end - t_start}")
     #end_training(settings)
     
 if args.testParser:
